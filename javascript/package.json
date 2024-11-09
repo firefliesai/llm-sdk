@@ -1,6 +1,6 @@
 {
   "type": "module",
-  "name": "@firefliesai/llm-sdk",
+  "name": "@hoangvvo/llm-sdk",
   "version": "0.1.6",
   "description": "A unified LLM SDK",
   "scripts": {
