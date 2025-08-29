@@ -212,7 +212,7 @@ suite("OpenAIModel", () => {
   test("reasoning effort parameter mapping", async () => {
     const model = new OpenAIModel({
       apiKey: process.env["OPENAI_API_KEY"] as string,
-      modelId: "gpt-4o-mini",
+      modelId: "o3",
     });
 
     const response = await model.generate({
