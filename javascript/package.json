@@ -7,7 +7,8 @@
     "generate": "node generate.js",
     "build": "tshy && cp src/schema/schema.json dist/esm/schema/schema.json && cp src/schema/schema.json dist/commonjs/schema/schema.json",
     "lint": "eslint src",
-    "test": "tsx --test --experimental-test-coverage --env-file=../.env \"**/*.test.ts\""
+    "test": "tsx --test --experimental-test-coverage --env-file=../.env **/*.test.ts",
+    "test:provider": "npx tsx --test --experimental-test-coverage --env-file=../.env test/$npm_config_provider.test.ts"
   },
   "files": [
     "dist"
