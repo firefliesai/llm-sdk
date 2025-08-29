@@ -342,6 +342,9 @@ export function convertToOpenAISamplingParams(
       frequency_penalty: input.frequencyPenalty,
     }),
     ...(typeof input.seed === "number" && { seed: input.seed }),
+    ...(typeof input.reasoningEffort === "string" && {
+      reasoning_effort: input.reasoningEffort,
+    }),
   } satisfies Partial<OpenAI.Chat.ChatCompletionCreateParams>;
 }
 

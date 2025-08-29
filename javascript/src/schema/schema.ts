@@ -462,6 +462,10 @@ export interface LanguageModelInput {
    */
   modalities?: Modality[];
   /**
+   * Controls the reasoning effort for models that support it (e.g., GPT-5, O3, O4 series).
+   */
+  reasoningEffort?: "minimal" | "low" | "medium" | "high";
+  /**
    * Extra options that the model may support.
    */
   extra?: {

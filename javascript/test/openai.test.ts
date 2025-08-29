@@ -208,4 +208,28 @@ suite("OpenAIModel", () => {
     const audioPart2 = response2.content.find((part) => part.type === "audio");
     t.assert.equal(!!audioPart2, true);
   });
+
+  test("reasoning effort parameter mapping", async () => {
+    const model = new OpenAIModel({
+      apiKey: process.env["OPENAI_API_KEY"] as string,
+      modelId: "gpt-4o-mini",
+    });
+
+    const response = await model.generate({
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: "Hello",
+            },
+          ],
+        },
+      ],
+      reasoningEffort: "medium",
+    });
+
+    log(response);
+  });
 });
