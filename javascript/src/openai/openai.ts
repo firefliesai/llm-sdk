@@ -130,21 +130,13 @@ export class OpenAIModel implements LanguageModel {
         (input as OpenAIResponsesLanguageModelInput).responsesOptions,
       );
 
-      const it = generator[Symbol.asyncIterator]();
-      while (true) {
-        const { value, done } = await it.next();
-        if (done) {
-          const final = value as ModelResponse;
-          return {
-            ...final,
-            ...(this.metadata?.pricing &&
-              final.usage && {
-                cost: calculateCost(final.usage, this.metadata.pricing),
-              }),
-          };
-        }
-        if (value) yield value;
+      for await (const chunk of generator) {
+        yield chunk;
       }
+
+      return {
+        content: [],
+      };
     }
 
     // Use traditional Chat Completions API
@@ -593,16 +585,18 @@ export function mapOpenAIMessage(
   }
 
   if (message.tool_calls) {
-    message.tool_calls.forEach((toolCall: any) => {
-      content.push({
-        type: "tool-call",
-        toolCallId: toolCall.id,
-        toolName: toolCall.function.name,
-        args: JSON.parse(toolCall.function.arguments) as {
-          [key: string]: unknown;
-        },
-      });
-    });
+    message.tool_calls.forEach(
+      (toolCall: OpenAI.Chat.Completions.ChatCompletionMessageToolCall) => {
+        content.push({
+          type: "tool-call",
+          toolCallId: toolCall.id,
+          toolName: toolCall.function.name,
+          args: JSON.parse(toolCall.function.arguments) as {
+            [key: string]: unknown;
+          },
+        });
+      },
+    );
   }
 
   return {
@@ -657,26 +651,30 @@ export function mapOpenAIDelta(
     const allExistingToolCalls = existingContentDeltas.filter(
       (delta) => delta.part.type === "tool-call",
     );
-    delta.tool_calls.forEach((toolCall: any) => {
-      const existingDelta = allExistingToolCalls[toolCall.index];
+    delta.tool_calls.forEach(
+      (
+        toolCall: OpenAI.Chat.Completions.ChatCompletionChunk.Choice.Delta.ToolCall,
+      ) => {
+        const existingDelta = allExistingToolCalls[toolCall.index];
 
-      const part: ToolCallPartDelta = {
-        type: "tool-call",
-        ...(toolCall.id && { toolCallId: toolCall.id }),
-        ...(toolCall.function?.name && { toolName: toolCall.function.name }),
-        ...(toolCall.function?.arguments && {
-          args: toolCall.function.arguments,
-        }),
-      };
-      contentDeltas.push({
-        index: guessDeltaIndex(
+        const part: ToolCallPartDelta = {
+          type: "tool-call",
+          ...(toolCall.id && { toolCallId: toolCall.id }),
+          ...(toolCall.function?.name && { toolName: toolCall.function.name }),
+          ...(toolCall.function?.arguments && {
+            args: toolCall.function.arguments,
+          }),
+        };
+        contentDeltas.push({
+          index: guessDeltaIndex(
+            part,
+            [...existingContentDeltas, ...contentDeltas],
+            existingDelta,
+          ),
           part,
-          [...existingContentDeltas, ...contentDeltas],
-          existingDelta,
-        ),
-        part,
-      });
-    });
+        });
+      },
+    );
   }
 
   return contentDeltas;

@@ -180,11 +180,9 @@ export class ContentDeltaAccumulator {
             type: "reasoning",
             ...(delta.part.id && { id: delta.part.id }),
             reasoning: delta.part.reasoning || "",
-            ...(typeof delta.part.summary === "boolean"
-              ? { summary: delta.part.summary }
-              : delta.part.summary !== undefined
-              ? { summary: delta.part.summary }
-              : {}),
+            ...(delta.part.summary !== undefined && {
+              summary: delta.part.summary,
+            }),
           };
         default: {
           const exhaustiveCheck: never = delta.part;

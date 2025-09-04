@@ -18,6 +18,7 @@ import {
   PartialModelResponse,
   Tool,
   ToolCallPart,
+  ToolCallPartDelta,
 } from "../schema/index.js";
 import { convertAudioPartsToTextParts } from "../utils/message.utils.js";
 import {
@@ -353,21 +354,24 @@ export function mapMistralMessage(
     });
   }
   if (Array.isArray(message.content)) {
-    message.content.forEach((chunk: any) => {
-      switch (chunk.type) {
+    message.content.forEach((chunk: Record<string, unknown>) => {
+      switch (chunk["type"]) {
         case "text":
           content.push({
             type: "text",
-            text: chunk.text,
+            text: chunk["text"] as string,
           });
           break;
         case "image_url":
         case "reference":
-          throw new NotImplementedError("message.part", chunk.type);
+          throw new NotImplementedError(
+            "message.part",
+            chunk["type"] as string,
+          );
         default: {
           throw new NotImplementedError(
             "message.part",
-            (chunk as { type: string }).type,
+            chunk["type"] as string,
           );
         }
       }
@@ -375,25 +379,29 @@ export function mapMistralMessage(
   }
 
   if (message.toolCalls) {
-    message.toolCalls.forEach((toolCall: any) => {
-      if (!toolCall.id) {
+    message.toolCalls.forEach((toolCall: Record<string, unknown>) => {
+      if (!toolCall["id"]) {
         throw new Error("toolCall.id is missing");
       }
       let args: ToolCallPart["args"] = null;
+      const toolFunction = toolCall["function"] as Record<string, unknown>;
 
-      if (typeof toolCall.function.arguments === "string") {
-        args = JSON.parse(toolCall.function.arguments) as {
+      if (typeof toolFunction["arguments"] === "string") {
+        args = JSON.parse(toolFunction["arguments"]) as {
           [key: string]: unknown;
         };
       }
-      if (typeof toolCall.function.arguments === "object") {
-        args = toolCall.function.arguments;
+      if (
+        typeof toolFunction["arguments"] === "object" &&
+        toolFunction["arguments"] !== null
+      ) {
+        args = toolFunction["arguments"] as { [k: string]: unknown };
       }
 
       content.push({
         type: "tool-call",
-        toolCallId: toolCall.id,
-        toolName: toolCall.function.name,
+        toolCallId: toolCall["id"] as string,
+        toolName: toolFunction["name"] as string,
         args,
       });
     });
@@ -420,49 +428,55 @@ export function mapMistralDelta(
     });
   }
   if (Array.isArray(delta.content)) {
-    delta.content.forEach((chunk: any) => {
-      switch (chunk.type) {
+    delta.content.forEach((chunk: Record<string, unknown>) => {
+      switch (chunk["type"]) {
         case "text": {
           const existingDelta = existingContentDeltas.find(
             (delta) => delta.part.type === "text",
           );
           contentDeltas.push({
             index: existingDelta ? existingDelta.index : contentDeltas.length,
-            part: { type: "text", text: chunk.text },
+            part: { type: "text", text: chunk["text"] as string },
           });
           break;
         }
         case "image_url":
         case "reference":
-          throw new NotImplementedError("message.part", chunk.type);
+          throw new NotImplementedError(
+            "message.part",
+            chunk["type"] as string,
+          );
         default: {
           throw new NotImplementedError(
             "message.part",
-            (chunk as { type: string }).type,
+            chunk["type"] as string,
           );
         }
       }
     });
   }
   if (delta.toolCalls) {
-    delta.toolCalls.forEach((toolCall: any) => {
+    delta.toolCalls.forEach((toolCall: Record<string, unknown>) => {
       // This is unsafe because it leads to mismatched tool calls
       // but from the Mistral API, it seems like the tool calls are
       // always streamed at once
+      const toolFunction = toolCall["function"] as Record<string, unknown>;
       let args: string;
-      if (typeof toolCall.function.arguments === "string") {
-        args = toolCall.function.arguments;
+      if (typeof toolFunction["arguments"] === "string") {
+        args = toolFunction["arguments"];
       } else {
-        args = JSON.stringify(toolCall.function.arguments);
+        args = JSON.stringify(toolFunction["arguments"]);
       }
+      const cleanedPart: ToolCallPartDelta = {
+        type: "tool-call",
+        toolCallId: toolCall["id"] as string,
+        toolName: toolFunction["name"] as string,
+        args,
+      };
+
       contentDeltas.push({
         index: contentDeltas.length,
-        part: {
-          type: "tool-call",
-          ...(toolCall.id && { toolCallId: toolCall.id }),
-          ...(toolCall.function.name && { toolName: toolCall.function.name }),
-          ...(args && { args }),
-        },
+        part: cleanedPart,
       });
     });
   }
