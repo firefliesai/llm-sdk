@@ -107,36 +107,60 @@ export class OpenAIResponsesClient {
   ): OpenAIResponsesCreateParams {
     const messages = this.convertToResponsesAPIMessages(input);
 
-    const params: any = {
+    const baseParams = {
       model: this.options.modelId,
       input: messages,
     };
 
-    if (input.tools) {
-      params.tools = input.tools.map((tool) =>
-        convertToOpenAITool(tool, this.options),
-      );
-    }
-    if (input.toolChoice) {
-      params.tool_choice = convertToOpenAIToolChoice(input.toolChoice);
-    }
-    
-    Object.assign(params, convertToOpenAISamplingParams(input));
-    
-    if (input.reasoning) {
-      params.reasoning = this.mapReasoningOptions(input.reasoning);
-    }
-    if (responsesOptions?.background) {
-      params.background = responsesOptions.background;
-    }
-    if (typeof responsesOptions?.store === "boolean") {
-      params.store = responsesOptions.store;
-    }
-    if (responsesOptions?.include) {
-      params.include = responsesOptions.include;
-    }
+    const toolParams = input.tools
+      ? {
+          tools: input.tools.map((tool) =>
+            convertToOpenAITool(tool, this.options),
+          ),
+        }
+      : {};
 
-    return params;
+    const toolChoiceParams = input.toolChoice
+      ? {
+          tool_choice: convertToOpenAIToolChoice(input.toolChoice),
+        }
+      : {};
+
+    const samplingParams = convertToOpenAISamplingParams(input);
+
+    const reasoningParams = input.reasoning
+      ? {
+          reasoning: this.mapReasoningOptions(input.reasoning),
+        }
+      : {};
+
+    const backgroundParams = responsesOptions?.background
+      ? {
+          background: responsesOptions.background,
+        }
+      : {};
+
+    const storeParams =
+      typeof responsesOptions?.store === "boolean"
+        ? {
+            store: responsesOptions.store,
+          }
+        : {};
+
+    const includeParams = responsesOptions?.include
+      ? { include: responsesOptions.include }
+      : {};
+
+    return {
+      ...baseParams,
+      ...toolParams,
+      ...toolChoiceParams,
+      ...samplingParams,
+      ...reasoningParams,
+      ...backgroundParams,
+      ...storeParams,
+      ...includeParams,
+    } as OpenAIResponsesCreateParams;
   }
 
   /**
@@ -259,7 +283,9 @@ export class OpenAIResponsesClient {
     params: OpenAIResponsesCreateParams,
   ): Promise<Record<string, unknown>> {
     // Use OpenAI SDK's native responses.create method
-    const response = await this.openai.responses.create(params as any);
+    const response = await this.openai.responses.create(
+      params as unknown as Parameters<typeof this.openai.responses.create>[0],
+    );
     return response as unknown as Record<string, unknown>;
   }
 
@@ -270,7 +296,9 @@ export class OpenAIResponsesClient {
     params: OpenAIResponsesCreateParams,
   ): AsyncIterable<OpenAIResponseStreamEvent> {
     // Use OpenAI SDK's native responses.stream method
-    const stream = this.openai.responses.stream(params as any);
+    const stream = this.openai.responses.stream(
+      params as unknown as Parameters<typeof this.openai.responses.stream>[0],
+    );
 
     // Convert OpenAI SDK stream events to our format
     return this.convertOpenAIStreamToOurFormat(stream);
