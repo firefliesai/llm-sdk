@@ -129,7 +129,7 @@ export class OpenAIResponsesClient {
    */
   private convertToResponsesAPIMessages(input: LanguageModelInput): Array<any> {
     const messages = convertToOpenAIMessages(input, this.options);
-    
+
     // Map content types for Responses API
     return messages.map((message: any) => {
       if (message.content) {
@@ -137,13 +137,15 @@ export class OpenAIResponsesClient {
         if (typeof message.content === "string") {
           return {
             ...message,
-            content: [{
-              type: message.role === "user" ? "input_text" : "output_text",
-              text: message.content
-            }]
+            content: [
+              {
+                type: message.role === "user" ? "input_text" : "output_text",
+                text: message.content,
+              },
+            ],
           };
         }
-        
+
         // Handle array content
         if (Array.isArray(message.content)) {
           const mappedContent = message.content.map((contentPart: any) => {
@@ -151,25 +153,25 @@ export class OpenAIResponsesClient {
               case "text":
                 return {
                   ...contentPart,
-                  type: message.role === "user" ? "input_text" : "output_text"
+                  type: message.role === "user" ? "input_text" : "output_text",
                 };
               case "image_url":
                 return {
                   ...contentPart,
-                  type: "input_image"
+                  type: "input_image",
                 };
               default:
                 return contentPart;
             }
           });
-          
+
           return {
             ...message,
-            content: mappedContent
+            content: mappedContent,
           };
         }
       }
-      
+
       return message;
     });
   }
@@ -234,9 +236,9 @@ export class OpenAIResponsesClient {
     params: OpenAIResponsesCreateParams,
   ): Promise<any> {
     // Use OpenAI SDK's native responses.create method
-    return await this.openai.responses.create({ 
-      ...params, 
-      stream: false 
+    return await this.openai.responses.create({
+      ...params,
+      stream: false,
     } as any);
   }
 
@@ -247,11 +249,11 @@ export class OpenAIResponsesClient {
     params: OpenAIResponsesCreateParams,
   ): Promise<AsyncIterable<OpenAIResponseStreamEvent>> {
     // Use OpenAI SDK's native responses.stream method
-    const stream = this.openai.responses.stream({ 
-      ...params, 
-      stream: true 
+    const stream = this.openai.responses.stream({
+      ...params,
+      stream: true,
     } as any);
-    
+
     // Convert OpenAI SDK stream events to our format
     return this.convertOpenAIStreamToOurFormat(stream);
   }
@@ -259,7 +261,9 @@ export class OpenAIResponsesClient {
   /**
    * Convert OpenAI SDK stream events to our format
    */
-  private async *convertOpenAIStreamToOurFormat(stream: any): AsyncGenerator<OpenAIResponseStreamEvent> {
+  private async *convertOpenAIStreamToOurFormat(
+    stream: any,
+  ): AsyncGenerator<OpenAIResponseStreamEvent> {
     for await (const event of stream) {
       // The OpenAI SDK events should already be in the correct format,
       // but we can add any necessary transformations here
@@ -312,7 +316,7 @@ export class OpenAIResponsesClient {
   private mapUsage(usage: any): ModelResponse["usage"] {
     const reasoningTokens = usage.output_tokens_details?.reasoning_tokens || 0;
     const outputTokens = usage.output_tokens || 0;
-    
+
     return {
       inputTokens: usage.input_tokens || 0,
       outputTokens: outputTokens,
