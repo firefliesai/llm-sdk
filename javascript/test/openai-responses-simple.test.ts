@@ -6,7 +6,7 @@ import type { OpenAIModelOptions } from "../src/openai/types.js";
 await describe("OpenAI Responses API - Basic Tests", () => {
   const mockOptions: OpenAIModelOptions = {
     apiKey: "test-key",
-    modelId: "o1-mini",
+    modelId: "gpt-5-mini",
   };
 
   void it("should create OpenAIResponsesClient", () => {
@@ -18,7 +18,7 @@ await describe("OpenAI Responses API - Basic Tests", () => {
     const model = new OpenAIModel(mockOptions);
     assert.ok(model, "Model should be created successfully");
     assert.strictEqual(model.provider, "openai");
-    assert.strictEqual(model.modelId, "o1-mini");
+    assert.strictEqual(model.modelId, "gpt-5-mini");
   });
 
   void it("should have correct reasoning options types", () => {

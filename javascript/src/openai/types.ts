@@ -92,17 +92,13 @@ export interface OpenAIResponsesCreateParams {
    */
   model: string;
   /**
-   * Input messages or prompt
+   * Input messages or prompt (replaces 'messages' in Responses API)
    */
   input?: string | Array<any>;
   /**
    * System instructions for the assistant
    */
   instructions?: string;
-  /**
-   * Messages array (alternative to input)
-   */
-  messages?: Array<any>;
   /**
    * Tools available to the model
    */

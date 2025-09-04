@@ -17,7 +17,7 @@ import { MistralModel } from "@firefliesai/llm-sdk/mistral";
 
 const model = new OpenAIModel({
   apiKey: process.env.OPENAI_API_KEY!,
-  modelId: "o1-mini", // Use reasoning-capable models
+  modelId: "gpt-5-mini", // Use reasoning-capable models
 });
 
 // Generate with thinking tokens

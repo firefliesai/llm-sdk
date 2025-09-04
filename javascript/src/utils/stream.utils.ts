@@ -98,9 +98,22 @@ export class ContentDeltaAccumulator {
             existingDelta.part.summary = incomingDelta.part.summary;
           }
         } else {
-          throw new Error(
-            `unexpected part at index ${String(incomingDelta.index)}. existing part has type ${existingDelta.part.type}, incoming part has type ${incomingDelta.part.type}`,
-          );
+          // For different content types at the same index (e.g., reasoning -> text in OpenAI Responses API),
+          // treat as separate parts rather than trying to merge them
+          this.deltas.push({
+            index: incomingDelta.index,
+            part: {
+              ...(incomingDelta.part.type === "audio"
+                ? {
+                    ...incomingDelta.part,
+                    audioData: incomingDelta.part.audioData
+                      ? [base64ToArrayBuffer(incomingDelta.part.audioData)]
+                      : [],
+                  }
+                : incomingDelta.part),
+            },
+          });
+          return;
         }
       } else {
         this.deltas.push({

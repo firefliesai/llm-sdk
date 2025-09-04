@@ -6,7 +6,7 @@ import { OpenAILanguageModelInput, OpenAIModel } from "../src/openai/index.js";
 async function basicReasoningExample() {
   const model = new OpenAIModel({
     apiKey: process.env["OPENAI_API_KEY"] as string,
-    modelId: "o1-mini", // Use a model that supports reasoning
+    modelId: "gpt-5-mini", // Use a model that supports reasoning
   });
 
   const response = await model.generate({
@@ -51,7 +51,7 @@ async function basicReasoningExample() {
 async function streamingReasoningExample() {
   const model = new OpenAIModel({
     apiKey: process.env["OPENAI_API_KEY"] as string,
-    modelId: "o1-mini",
+    modelId: "gpt-5-mini",
   });
 
   console.log("Streaming reasoning tokens...\n");
@@ -129,9 +129,11 @@ async function backgroundReasoningExample() {
   console.log("Background processing completed!");
   response.content.forEach((part) => {
     if (part.type === "reasoning") {
-      console.log(`[THINKING]: ${part.reasoning.slice(0, 200)}...`);
+      const reasoningText = part.reasoning || "";
+      console.log(`[THINKING]: ${reasoningText.slice(0, 200)}...`);
     } else if (part.type === "text") {
-      console.log(`[RESPONSE]: ${part.text.slice(0, 200)}...`);
+      const responseText = part.text || "";
+      console.log(`[RESPONSE]: ${responseText.slice(0, 200)}...`);
     }
   });
 }
@@ -140,7 +142,7 @@ async function backgroundReasoningExample() {
 async function comparisonExample() {
   const model = new OpenAIModel({
     apiKey: process.env["OPENAI_API_KEY"] as string,
-    modelId: "gpt-4", // Regular model for comparison
+    modelId: "gpt-5-mini", // Use reasoning-capable model for both comparisons
   });
 
   const question =
@@ -198,7 +200,7 @@ async function comparisonExample() {
 async function reasoningVerbosityExample() {
   const model = new OpenAIModel({
     apiKey: process.env["OPENAI_API_KEY"] as string,
-    modelId: "o1-mini",
+    modelId: "gpt-5-mini",
   });
 
   const problem = "Design a database schema for a social media platform.";

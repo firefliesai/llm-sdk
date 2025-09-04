@@ -9,7 +9,7 @@ import { OpenAIModel } from "../src/openai/index.js";
 async function streamThinkingTokens() {
   const model = new OpenAIModel({
     apiKey: process.env["OPENAI_API_KEY"] as string,
-    modelId: "o1-mini", // Model that supports reasoning
+    modelId: "gpt-5-mini", // Model that supports reasoning
   });
 
   console.log("🧠 Starting thinking token stream...\n");
@@ -203,7 +203,7 @@ class ThinkingTokenVisualizer {
 async function visualizedThinkingExample() {
   const model = new OpenAIModel({
     apiKey: process.env["OPENAI_API_KEY"] as string,
-    modelId: "o1-mini",
+    modelId: "gpt-5-mini",
   });
 
   const stream = model.stream({

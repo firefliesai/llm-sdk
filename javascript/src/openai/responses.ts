@@ -97,11 +97,11 @@ export class OpenAIResponsesClient {
     input: LanguageModelInput,
     responsesOptions?: OpenAIResponsesOptions,
   ): OpenAIResponsesCreateParams {
-    const messages = convertToOpenAIMessages(input, this.options);
+    const messages = this.convertToResponsesAPIMessages(input);
 
     return {
       model: this.options.modelId,
-      messages,
+      input: messages,
       ...(input.tools && {
         tools: input.tools.map((tool) =>
           convertToOpenAITool(tool, this.options),
@@ -122,6 +122,56 @@ export class OpenAIResponsesClient {
       }),
       ...(responsesOptions?.include && { include: responsesOptions.include }),
     };
+  }
+
+  /**
+   * Convert messages to OpenAI Responses API format
+   */
+  private convertToResponsesAPIMessages(input: LanguageModelInput): Array<any> {
+    const messages = convertToOpenAIMessages(input, this.options);
+    
+    // Map content types for Responses API
+    return messages.map((message: any) => {
+      if (message.content) {
+        // Handle string content by converting to input_text format
+        if (typeof message.content === "string") {
+          return {
+            ...message,
+            content: [{
+              type: message.role === "user" ? "input_text" : "output_text",
+              text: message.content
+            }]
+          };
+        }
+        
+        // Handle array content
+        if (Array.isArray(message.content)) {
+          const mappedContent = message.content.map((contentPart: any) => {
+            switch (contentPart.type) {
+              case "text":
+                return {
+                  ...contentPart,
+                  type: message.role === "user" ? "input_text" : "output_text"
+                };
+              case "image_url":
+                return {
+                  ...contentPart,
+                  type: "input_image"
+                };
+              default:
+                return contentPart;
+            }
+          });
+          
+          return {
+            ...message,
+            content: mappedContent
+          };
+        }
+      }
+      
+      return message;
+    });
   }
 
   /**
@@ -178,95 +228,42 @@ export class OpenAIResponsesClient {
   }
 
   /**
-   * Make request to OpenAI Responses API
+   * Make request to OpenAI Responses API using OpenAI SDK's native responses.create
    */
   private async makeResponsesRequest(
     params: OpenAIResponsesCreateParams,
   ): Promise<any> {
-    // Since OpenAI SDK might not have responses client yet, we'll use the underlying fetch
-    const response = await fetch(
-      `${this.openai.baseURL || "https://api.openai.com"}/v1/responses`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${this.options.apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(params),
-      },
-    );
-
-    if (!response.ok) {
-      throw new Error(`OpenAI Responses API error: ${response.statusText}`);
-    }
-
-    return response.json();
+    // Use OpenAI SDK's native responses.create method
+    return await this.openai.responses.create({ 
+      ...params, 
+      stream: false 
+    } as any);
   }
 
   /**
-   * Make streaming request to OpenAI Responses API
+   * Make streaming request to OpenAI Responses API using OpenAI SDK's native responses.stream
    */
   private async makeResponsesStreamRequest(
     params: OpenAIResponsesCreateParams,
   ): Promise<AsyncIterable<OpenAIResponseStreamEvent>> {
-    const response = await fetch(
-      `${this.openai.baseURL || "https://api.openai.com"}/v1/responses`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${this.options.apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(params),
-      },
-    );
-
-    if (!response.ok) {
-      throw new Error(`OpenAI Responses API error: ${response.statusText}`);
-    }
-
-    return this.parseServerSentEvents(response);
+    // Use OpenAI SDK's native responses.stream method
+    const stream = this.openai.responses.stream({ 
+      ...params, 
+      stream: true 
+    } as any);
+    
+    // Convert OpenAI SDK stream events to our format
+    return this.convertOpenAIStreamToOurFormat(stream);
   }
 
   /**
-   * Parse Server-Sent Events from the response stream
+   * Convert OpenAI SDK stream events to our format
    */
-  private async *parseServerSentEvents(
-    response: Response,
-  ): AsyncGenerator<OpenAIResponseStreamEvent> {
-    const reader = response.body?.getReader();
-    if (!reader) {
-      throw new Error("Failed to get response body reader");
-    }
-
-    const decoder = new TextDecoder();
-    let buffer = "";
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            const data = line.slice(6);
-            if (data === "[DONE]") return;
-
-            try {
-              const event = JSON.parse(data) as OpenAIResponseStreamEvent;
-              yield event;
-            } catch (error) {
-              console.warn("Failed to parse SSE data:", data, error);
-            }
-          }
-        }
-      }
-    } finally {
-      reader.releaseLock();
+  private async *convertOpenAIStreamToOurFormat(stream: any): AsyncGenerator<OpenAIResponseStreamEvent> {
+    for await (const event of stream) {
+      // The OpenAI SDK events should already be in the correct format,
+      // but we can add any necessary transformations here
+      yield event as OpenAIResponseStreamEvent;
     }
   }
 
@@ -313,13 +310,16 @@ export class OpenAIResponsesClient {
    * Map OpenAI usage to SDK usage format
    */
   private mapUsage(usage: any): ModelResponse["usage"] {
+    const reasoningTokens = usage.output_tokens_details?.reasoning_tokens || 0;
+    const outputTokens = usage.output_tokens || 0;
+    
     return {
-      inputTokens: usage.prompt_tokens || 0,
-      outputTokens: usage.completion_tokens || 0,
-      ...(usage.reasoning_tokens && {
+      inputTokens: usage.input_tokens || 0,
+      outputTokens: outputTokens,
+      ...(reasoningTokens > 0 && {
         outputTokensDetail: {
-          reasoningTokens: usage.reasoning_tokens,
-          textTokens: usage.completion_tokens - (usage.reasoning_tokens || 0),
+          reasoningTokens: reasoningTokens,
+          textTokens: outputTokens - reasoningTokens,
         },
       }),
     };
