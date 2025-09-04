@@ -176,6 +176,8 @@ export function convertToAnthropicMessages(
                   };
                 case "audio":
                   throw new ModelUnsupportedMessagePart("anthropic", part.type);
+                case "reasoning":
+                  throw new ModelUnsupportedMessagePart("anthropic", part.type);
                 default: {
                   const exhaustiveCheck: never = part;
                   throw new InvalidValueError(

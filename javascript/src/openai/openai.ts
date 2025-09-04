@@ -32,6 +32,10 @@ import type {
   OpenAIPatchedCompletionTokenDetails,
   OpenAIPatchedPromptTokensDetails,
 } from "./types.js";
+import {
+  OpenAIResponsesClient,
+  type OpenAIResponsesLanguageModelInput,
+} from "./responses.js";
 
 const OPENAI_AUDIO_SAMPLE_RATE = 24_000;
 const OPENAI_AUDIO_CHANNELS = 1;
@@ -46,6 +50,7 @@ export class OpenAIModel implements LanguageModel {
   metadata?: LanguageModelMetadata;
 
   private openai: OpenAI;
+  private responsesClient: OpenAIResponsesClient;
 
   constructor(
     public options: OpenAIModelOptions,
@@ -59,9 +64,23 @@ export class OpenAIModel implements LanguageModel {
       baseURL: options.baseURL,
       apiKey: options.apiKey,
     });
+
+    this.responsesClient = new OpenAIResponsesClient(options);
   }
 
   async generate(input: OpenAILanguageModelInput): Promise<ModelResponse> {
+    // Check if reasoning is requested - if so, use Responses API
+    if (
+      input.reasoning ||
+      (input as OpenAIResponsesLanguageModelInput).responsesOptions
+    ) {
+      return this.responsesClient.createResponse(
+        input,
+        (input as OpenAIResponsesLanguageModelInput).responsesOptions,
+      );
+    }
+
+    // Use traditional Chat Completions API
     const openaiInput = {
       ...convertToOpenAIParams(input, this.options),
       stream: false,
@@ -94,6 +113,26 @@ export class OpenAIModel implements LanguageModel {
   async *stream(
     input: OpenAILanguageModelInput,
   ): AsyncGenerator<PartialModelResponse, ModelResponse> {
+    // Check if reasoning is requested - if so, use Responses API
+    if (
+      input.reasoning ||
+      (input as OpenAIResponsesLanguageModelInput).responsesOptions
+    ) {
+      const generator = this.responsesClient.streamResponse(
+        input,
+        (input as OpenAIResponsesLanguageModelInput).responsesOptions,
+      );
+
+      for await (const chunk of generator) {
+        yield chunk;
+      }
+
+      return {
+        content: [],
+      };
+    }
+
+    // Use traditional Chat Completions API
     const openaiInput = {
       ...convertToOpenAIParams(input, this.options),
       stream: true,
@@ -242,6 +281,13 @@ export function convertToOpenAIMessages(
                 id: part.id,
               };
               break;
+            }
+            case "reasoning": {
+              // Reasoning parts are not supported in regular chat completions
+              throw new InvalidValueError(
+                "message.part.type",
+                "reasoning (not supported in chat completions)",
+              );
             }
             default: {
               const exhaustiveCheck: never = part;
@@ -652,6 +698,7 @@ export function mapOpenAICompletionTokenDetails(
   return {
     textTokens: details.text_tokens,
     audioTokens: details.audio_tokens,
+    reasoningTokens: details.reasoning_tokens,
     // note: reasoning_tokens is included in output_tokens
   };
 }

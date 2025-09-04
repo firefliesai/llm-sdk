@@ -248,6 +248,9 @@ export function convertToCohereMessageParam(parts: Part[]): {
         });
         break;
       }
+      case "reasoning": {
+        throw new ModelUnsupportedMessagePart("cohere", part.type);
+      }
       default: {
         const exhaustiveCheck: never = part;
         throw new InvalidValueError(

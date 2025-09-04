@@ -14,7 +14,11 @@ import type {
   UsageMetadata,
 } from "@google/generative-ai";
 import { FunctionCallingMode, GoogleGenerativeAI } from "@google/generative-ai";
-import { InvalidValueError, NotImplementedError } from "../errors/errors.js";
+import {
+  InvalidValueError,
+  ModelUnsupportedMessagePart,
+  NotImplementedError,
+} from "../errors/errors.js";
 import type {
   LanguageModel,
   LanguageModelMetadata,
@@ -204,6 +208,9 @@ export function convertToGoogleMessages(
               response,
             },
           };
+        }
+        case "reasoning": {
+          throw new ModelUnsupportedMessagePart("google", part.type);
         }
         default: {
           const exhaustiveCheck: never = part;
@@ -491,6 +498,9 @@ export function mapGoogleDelta(
         };
         contentDeltas.push(o);
         break;
+      }
+      case "reasoning": {
+        throw new ModelUnsupportedMessagePart("google", part.type);
       }
       default: {
         const exhaustiveCheck: never = part;

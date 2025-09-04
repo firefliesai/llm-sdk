@@ -28,7 +28,8 @@ export type Part =
   | ImagePart
   | AudioPart
   | ToolCallPart
-  | ToolResultPart;
+  | ToolResultPart
+  | ReasoningPart;
 /**
  * This interface was referenced by `LlmSdk`'s JSON-Schema
  * via the `definition` "Message".
@@ -191,7 +192,7 @@ export interface UserMessage {
  */
 export interface AssistantMessage {
   role: "assistant";
-  content: (TextPart | ToolCallPart | AudioPart)[];
+  content: (TextPart | ToolCallPart | AudioPart | ReasoningPart)[];
 }
 /**
  * This interface was referenced by `LlmSdk`'s JSON-Schema
@@ -258,12 +259,54 @@ export interface AudioPartDelta {
   id?: string;
 }
 /**
+ * A part of the message that contains reasoning/thinking content.
+ *
+ * This interface was referenced by `LlmSdk`'s JSON-Schema
+ * via the `definition` "ReasoningPart".
+ */
+export interface ReasoningPart {
+  type: "reasoning";
+  /**
+   * The reasoning/thinking content
+   */
+  reasoning: string;
+  /**
+   * Whether this is a summary of the reasoning process
+   */
+  summary?: boolean;
+  /**
+   * The optional ID of the part.
+   */
+  id?: string;
+}
+
+/**
+ * This interface was referenced by `LlmSdk`'s JSON-Schema
+ * via the `definition` "ReasoningPartDelta".
+ */
+export interface ReasoningPartDelta {
+  type: "reasoning";
+  /**
+   * The partial reasoning/thinking content
+   */
+  reasoning?: string;
+  /**
+   * Whether this is a summary of the reasoning process
+   */
+  summary?: boolean;
+  /**
+   * The optional ID of the part.
+   */
+  id?: string;
+}
+
+/**
  * This interface was referenced by `LlmSdk`'s JSON-Schema
  * via the `definition` "ContentDelta".
  */
 export interface ContentDelta {
   index: number;
-  part: TextPartDelta | ToolCallPartDelta | AudioPartDelta;
+  part: TextPartDelta | ToolCallPartDelta | AudioPartDelta | ReasoningPartDelta;
 }
 /**
  * Represents a JSON schema.
@@ -314,6 +357,7 @@ export interface ModelTokensDetail {
   textTokens?: number;
   audioTokens?: number;
   imageTokens?: number;
+  reasoningTokens?: number;
 }
 /**
  * Represents the token usage of the model.
@@ -334,7 +378,7 @@ export interface ModelUsage {
  * via the `definition` "ModelResponse".
  */
 export interface ModelResponse {
-  content: (TextPart | ToolCallPart | AudioPart)[];
+  content: (TextPart | ToolCallPart | AudioPart | ReasoningPart)[];
   usage?: ModelUsage;
   /**
    * The cost of the response.
@@ -401,6 +445,34 @@ export interface ResponseFormatJson {
   schema?: JSONSchema;
 }
 /**
+ * Configuration for reasoning/thinking tokens
+ *
+ * This interface was referenced by `LlmSdk`'s JSON-Schema
+ * via the `definition` "ReasoningOptions".
+ */
+export interface ReasoningOptions {
+  /**
+   * Effort level for reasoning: "low", "medium", or "high"
+   * Controls the depth of reasoning provided
+   */
+  effort?: "low" | "medium" | "high";
+  /**
+   * Maximum number of reasoning tokens to generate
+   */
+  maxTokens?: number;
+  /**
+   * Whether to include reasoning tokens in the response
+   * Default: false (include reasoning tokens)
+   */
+  exclude?: boolean;
+  /**
+   * Whether to generate automatic reasoning summaries
+   * Can be "auto" for automatic summaries
+   */
+  summary?: "auto";
+}
+
+/**
  * This interface was referenced by `LlmSdk`'s JSON-Schema
  * via the `definition` "LanguageModelInput".
  */
@@ -461,6 +533,10 @@ export interface LanguageModelInput {
    * The modalities that the model should support.
    */
   modalities?: Modality[];
+  /**
+   * Configuration for reasoning/thinking tokens
+   */
+  reasoning?: ReasoningOptions;
   /**
    * Extra options that the model may support.
    */

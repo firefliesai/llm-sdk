@@ -2,6 +2,7 @@ import type {
   AudioPartDelta,
   ContentDelta,
   ModelResponse,
+  ReasoningPartDelta,
   TextPartDelta,
   ToolCallPart,
   ToolCallPartDelta,
@@ -18,7 +19,11 @@ export type InternalAudioPartDelta = Omit<AudioPartDelta, "audioData"> & {
 
 export interface InternalContentDelta {
   index: number;
-  part: TextPartDelta | ToolCallPartDelta | InternalAudioPartDelta;
+  part:
+    | TextPartDelta
+    | ToolCallPartDelta
+    | InternalAudioPartDelta
+    | ReasoningPartDelta;
 }
 
 export class ContentDeltaAccumulator {
@@ -79,6 +84,18 @@ export class ContentDeltaAccumulator {
             existingDelta.part.transcript =
               (existingDelta.part.transcript || "") +
               incomingDelta.part.transcript;
+          }
+        } else if (
+          existingDelta.part.type === "reasoning" &&
+          incomingDelta.part.type === "reasoning"
+        ) {
+          if (incomingDelta.part.reasoning) {
+            existingDelta.part.reasoning =
+              (existingDelta.part.reasoning || "") +
+              incomingDelta.part.reasoning;
+          }
+          if (incomingDelta.part.summary) {
+            existingDelta.part.summary = incomingDelta.part.summary;
           }
         } else {
           throw new Error(
@@ -145,6 +162,13 @@ export class ContentDeltaAccumulator {
             ...(delta.part.transcript && { transcript: delta.part.transcript }),
           };
         }
+        case "reasoning":
+          return {
+            type: "reasoning",
+            ...(delta.part.id && { id: delta.part.id }),
+            reasoning: delta.part.reasoning || "",
+            ...(delta.part.summary && { summary: delta.part.summary }),
+          };
         default: {
           const exhaustiveCheck: never = delta.part;
           throw new Error(
@@ -168,7 +192,11 @@ export function guessDeltaIndex(
   let matchingDelta = existingMatchingDelta;
   if (!matchingDelta) {
     matchingDelta = allContentDeltas.findLast((contentDelta) => {
-      if (part.type === "text" || part.type === "audio") {
+      if (
+        part.type === "text" ||
+        part.type === "audio" ||
+        part.type === "reasoning"
+      ) {
         return contentDelta.part.type === part.type;
       }
       // we won't be able to reliably match tool calls

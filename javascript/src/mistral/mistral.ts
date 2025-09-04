@@ -2,8 +2,8 @@ import { Mistral } from "@mistralai/mistralai";
 import * as MistralComponents from "@mistralai/mistralai/models/components/index.js";
 import {
   InvalidValueError,
-  ModelUnsupportedMessagePart,
   NotImplementedError,
+  ModelUnsupportedMessagePart,
 } from "../errors/errors.js";
 import {
   LanguageModel,
@@ -198,6 +198,9 @@ export function convertToMistralMessages(
             }
             case "audio": {
               throw new ModelUnsupportedMessagePart("mistral", "audio");
+            }
+            case "reasoning": {
+              throw new ModelUnsupportedMessagePart("mistral", part.type);
             }
             default: {
               const exhaustiveCheck: never = part;
