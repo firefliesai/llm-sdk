@@ -74,10 +74,17 @@ export class OpenAIModel implements LanguageModel {
       input.reasoning ||
       (input as OpenAIResponsesLanguageModelInput).responsesOptions
     ) {
-      return this.responsesClient.createResponse(
+      const resp = await this.responsesClient.createResponse(
         input,
         (input as OpenAIResponsesLanguageModelInput).responsesOptions,
       );
+      return {
+        ...resp,
+        ...(this.metadata?.pricing &&
+          resp.usage && {
+            cost: calculateCost(resp.usage, this.metadata.pricing),
+          }),
+      };
     }
 
     // Use traditional Chat Completions API
@@ -123,13 +130,21 @@ export class OpenAIModel implements LanguageModel {
         (input as OpenAIResponsesLanguageModelInput).responsesOptions,
       );
 
-      for await (const chunk of generator) {
-        yield chunk;
+      const it = generator[Symbol.asyncIterator]();
+      while (true) {
+        const { value, done } = await it.next();
+        if (done) {
+          const final = value as ModelResponse;
+          return {
+            ...final,
+            ...(this.metadata?.pricing &&
+              final?.usage && {
+                cost: calculateCost(final.usage, this.metadata.pricing),
+              }),
+          };
+        }
+        if (value) yield value;
       }
-
-      return {
-        content: [],
-      };
     }
 
     // Use traditional Chat Completions API

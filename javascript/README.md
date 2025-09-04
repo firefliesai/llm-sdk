@@ -2,7 +2,7 @@
 
 A unified SDK for working with various Large Language Model providers.
 
-### Basic Usage
+## Basic Usage
 
 ```typescript
 import { OpenAIModel } from "@firefliesai/llm-sdk/openai";
@@ -17,8 +17,10 @@ import { MistralModel } from "@firefliesai/llm-sdk/mistral";
 
 const model = new OpenAIModel({
   apiKey: process.env.OPENAI_API_KEY!,
-  modelId: "gpt-5-mini", // Use reasoning-capable models
+  modelId: "o1-mini", // Use reasoning-capable models
 });
+
+> Note: Reasoning/thinking tokens are currently supported only with the OpenAI Responses API. Using `reasoning` content with Anthropic, Google, Cohere, or Mistral will throw a `ModelUnsupportedMessagePart` error.
 
 // Generate with thinking tokens
 const response = await model.generate({
@@ -50,11 +52,11 @@ response.content.forEach((part) => {
 });
 
 // Check token usage
-console.log(`Reasoning tokens: ${response.usage?.outputTokensDetail?.reasoningTokens}`);
-console.log(`Text tokens: ${response.usage?.outputTokensDetail?.textTokens}`);
+console.log(`Reasoning tokens: ${response.usage?.outputTokensDetail?.reasoningTokens ?? 0}`);
+console.log(`Text tokens: ${response.usage?.outputTokensDetail?.textTokens ?? 0}`);
 ```
 
-### Examples
+## Examples
 
 Run the included examples to see thinking tokens in action:
 
@@ -69,7 +71,7 @@ npm run example:thinking
 npm run example:thinking:visualize
 ```
 
-### Migration Guide
+## Migration Guide
 
 Existing code using the OpenAI provider continues to work unchanged. To enable thinking tokens:
 
@@ -90,6 +92,6 @@ The SDK also supports all standard LLM features:
 
 See the main documentation for details on these features.
 
-# License
+## License
 
 MIT

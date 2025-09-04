@@ -7,9 +7,11 @@ import { OpenAIModel } from "../src/openai/index.js";
  * This demonstrates how to capture and display thinking tokens as they arrive
  */
 async function streamThinkingTokens() {
+  const apiKey = process.env["OPENAI_API_KEY"];
+  if (!apiKey) throw new Error("OPENAI_API_KEY is required");
   const model = new OpenAIModel({
-    apiKey: process.env["OPENAI_API_KEY"] as string,
-    modelId: "gpt-5-mini", // Model that supports reasoning
+    apiKey,
+    modelId: "o1-mini", // Model that supports reasoning
   });
 
   console.log("🧠 Starting thinking token stream...\n");
@@ -34,8 +36,8 @@ async function streamThinkingTokens() {
 
   let thinkingContent = "";
   let responseContent = "";
-  let thinkingTokenCount = 0;
-  let responseTokenCount = 0;
+  let reasoningChunkCount = 0;
+  let textChunkCount = 0;
 
   // Track timing
   const startTime = Date.now();
@@ -56,7 +58,7 @@ async function streamThinkingTokens() {
 
       if (part.reasoning) {
         thinkingContent += part.reasoning;
-        thinkingTokenCount++;
+        reasoningChunkCount++;
 
         // Show live thinking progress
         const preview =
@@ -80,7 +82,7 @@ async function streamThinkingTokens() {
 
       if (part.text) {
         responseContent += part.text;
-        responseTokenCount++;
+        textChunkCount++;
 
         // Show response in real-time
         process.stdout.write(part.text);
@@ -99,8 +101,8 @@ async function streamThinkingTokens() {
   console.log(
     `   Time to first response: ${firstResponseTime ? firstResponseTime - startTime : "N/A"}ms`,
   );
-  console.log(`   Thinking tokens received: ${thinkingTokenCount}`);
-  console.log(`   Response tokens received: ${responseTokenCount}`);
+  console.log(`   Reasoning chunks received: ${reasoningChunkCount}`);
+  console.log(`   Text chunks received: ${textChunkCount}`);
   console.log(`   Total thinking length: ${thinkingContent.length} characters`);
   console.log(`   Total response length: ${responseContent.length} characters`);
 
@@ -201,9 +203,11 @@ class ThinkingTokenVisualizer {
  * Example: Using the visualizer
  */
 async function visualizedThinkingExample() {
+  const apiKey = process.env["OPENAI_API_KEY"];
+  if (!apiKey) throw new Error("OPENAI_API_KEY is required");
   const model = new OpenAIModel({
-    apiKey: process.env["OPENAI_API_KEY"] as string,
-    modelId: "gpt-5-mini",
+    apiKey,
+    modelId: "o1-mini",
   });
 
   const stream = model.stream({
