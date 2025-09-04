@@ -138,7 +138,7 @@ export class OpenAIModel implements LanguageModel {
           return {
             ...final,
             ...(this.metadata?.pricing &&
-              final?.usage && {
+              final.usage && {
                 cost: calculateCost(final.usage, this.metadata.pricing),
               }),
           };
@@ -276,9 +276,9 @@ export function convertToOpenAIMessages(
               break;
             }
             case "tool-call": {
-              openaiMessageParam.tool_calls =
-                openaiMessageParam.tool_calls || [];
-              openaiMessageParam.tool_calls.push({
+              openaiMessageParam["tool_calls"] =
+                openaiMessageParam["tool_calls"] || [];
+              openaiMessageParam["tool_calls"].push({
                 type: "function",
                 id: part.toolCallId,
                 function: {
@@ -292,7 +292,7 @@ export function convertToOpenAIMessages(
               if (!part.id) {
                 throw new Error("audio part must have an id");
               }
-              openaiMessageParam.audio = {
+              openaiMessageParam["audio"] = {
                 id: part.id,
               };
               break;
@@ -593,7 +593,7 @@ export function mapOpenAIMessage(
   }
 
   if (message.tool_calls) {
-    message.tool_calls.forEach((toolCall) => {
+    message.tool_calls.forEach((toolCall: any) => {
       content.push({
         type: "tool-call",
         toolCallId: toolCall.id,
@@ -657,7 +657,7 @@ export function mapOpenAIDelta(
     const allExistingToolCalls = existingContentDeltas.filter(
       (delta) => delta.part.type === "tool-call",
     );
-    delta.tool_calls.forEach((toolCall) => {
+    delta.tool_calls.forEach((toolCall: any) => {
       const existingDelta = allExistingToolCalls[toolCall.index];
 
       const part: ToolCallPartDelta = {

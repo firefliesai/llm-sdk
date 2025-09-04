@@ -396,7 +396,7 @@ export function mapGoogleMessage(
     role: "assistant",
     content: candidate.content.parts
       .map(mapGooglePart)
-      .filter((part): part is AssistantMessage["content"][number] => !!part),
+      .filter((part: any): part is AssistantMessage["content"][number] => !!part),
   };
 }
 
@@ -470,7 +470,7 @@ export function mapGoogleDelta(
 ): ContentDelta[] {
   const contentDeltas: ContentDelta[] = [];
 
-  content.parts.forEach((googlePart) => {
+  content.parts.forEach((googlePart: any) => {
     const part = mapGooglePart(googlePart);
 
     if (!part) {

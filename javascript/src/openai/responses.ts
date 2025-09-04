@@ -63,7 +63,7 @@ export class OpenAIResponsesClient {
 
     const stream = await this.makeResponsesStreamRequest(params);
     const accumulator = new ContentDeltaAccumulator();
-    let finalResponse: any = null;
+    let finalResponse: ModelResponse | undefined;
 
     for await (const event of stream) {
       const contentDeltas = this.mapEventToContentDeltas(event);
@@ -78,14 +78,14 @@ export class OpenAIResponsesClient {
 
       // Store final response for usage information
       if (event.type === "response.completed") {
-        finalResponse = event.response;
+        finalResponse = this.mapResponseToModelResponse(event.response);
       }
     }
 
     return {
       content: accumulator.computeContent(),
       ...(finalResponse?.usage && {
-        usage: this.mapUsage(finalResponse.usage),
+        usage: finalResponse.usage,
       }),
     };
   }
@@ -127,7 +127,7 @@ export class OpenAIResponsesClient {
   /**
    * Convert messages to OpenAI Responses API format
    */
-  private convertToResponsesAPIMessages(input: LanguageModelInput): Array<any> {
+  private convertToResponsesAPIMessages(input: LanguageModelInput): any[] {
     const messages = convertToOpenAIMessages(input, this.options);
     
     // Map content types for Responses API

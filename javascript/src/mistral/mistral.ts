@@ -184,9 +184,9 @@ export function convertToMistralMessages(
               break;
             }
             case "tool-call": {
-              mistralMessageParam.toolCalls =
-                mistralMessageParam.toolCalls || [];
-              mistralMessageParam.toolCalls.push({
+              mistralMessageParam["toolCalls"] =
+                mistralMessageParam["toolCalls"] || [];
+              mistralMessageParam["toolCalls"].push({
                 type: "function",
                 id: part.toolCallId,
                 function: {
@@ -353,7 +353,7 @@ export function mapMistralMessage(
     });
   }
   if (Array.isArray(message.content)) {
-    message.content.forEach((chunk) => {
+    message.content.forEach((chunk: any) => {
       switch (chunk.type) {
         case "text":
           content.push({
@@ -365,10 +365,9 @@ export function mapMistralMessage(
         case "reference":
           throw new NotImplementedError("message.part", chunk.type);
         default: {
-          const exhaustiveCheck: never = chunk;
           throw new NotImplementedError(
             "message.part",
-            (exhaustiveCheck as { type: string }).type,
+            (chunk as { type: string }).type,
           );
         }
       }
@@ -376,7 +375,7 @@ export function mapMistralMessage(
   }
 
   if (message.toolCalls) {
-    message.toolCalls.forEach((toolCall) => {
+    message.toolCalls.forEach((toolCall: any) => {
       if (!toolCall.id) {
         throw new Error("toolCall.id is missing");
       }
@@ -421,7 +420,7 @@ export function mapMistralDelta(
     });
   }
   if (Array.isArray(delta.content)) {
-    delta.content.forEach((chunk) => {
+    delta.content.forEach((chunk: any) => {
       switch (chunk.type) {
         case "text": {
           const existingDelta = existingContentDeltas.find(
@@ -437,17 +436,16 @@ export function mapMistralDelta(
         case "reference":
           throw new NotImplementedError("message.part", chunk.type);
         default: {
-          const exhaustiveCheck: never = chunk;
           throw new NotImplementedError(
             "message.part",
-            (exhaustiveCheck as { type: string }).type,
+            (chunk as { type: string }).type,
           );
         }
       }
     });
   }
   if (delta.toolCalls) {
-    delta.toolCalls.forEach((toolCall) => {
+    delta.toolCalls.forEach((toolCall: any) => {
       // This is unsafe because it leads to mismatched tool calls
       // but from the Mistral API, it seems like the tool calls are
       // always streamed at once
