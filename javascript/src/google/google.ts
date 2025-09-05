@@ -396,7 +396,9 @@ export function mapGoogleMessage(
     role: "assistant",
     content: candidate.content.parts
       .map(mapGooglePart)
-      .filter((part): part is AssistantMessage["content"][number] => !!part),
+      .filter(
+        (part: unknown): part is AssistantMessage["content"][number] => !!part,
+      ),
   };
 }
 

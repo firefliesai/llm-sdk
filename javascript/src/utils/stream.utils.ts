@@ -113,7 +113,7 @@ export class ContentDeltaAccumulator {
                 : incomingDelta.part),
             },
           });
-          return;
+          continue;
         }
       } else {
         this.deltas.push({
@@ -180,7 +180,9 @@ export class ContentDeltaAccumulator {
             type: "reasoning",
             ...(delta.part.id && { id: delta.part.id }),
             reasoning: delta.part.reasoning || "",
-            ...(delta.part.summary && { summary: delta.part.summary }),
+            ...(delta.part.summary !== undefined && {
+              summary: delta.part.summary,
+            }),
           };
         default: {
           const exhaustiveCheck: never = delta.part;

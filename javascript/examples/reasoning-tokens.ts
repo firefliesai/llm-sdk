@@ -1,12 +1,14 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/restrict-template-expressions */
-import { OpenAILanguageModelInput, OpenAIModel } from "../src/openai/index.js";
+import { OpenAIModel, OpenAIResponsesLanguageModelInput } from "../src/openai/index.js";
 
 // Example: Using reasoning tokens with OpenAI Responses API
 async function basicReasoningExample() {
+  const apiKey = process.env["OPENAI_API_KEY"];
+  if (!apiKey) throw new Error("OPENAI_API_KEY is required");
   const model = new OpenAIModel({
-    apiKey: process.env["OPENAI_API_KEY"] as string,
-    modelId: "gpt-5-mini", // Use a model that supports reasoning
+    apiKey,
+    modelId: "o1-mini", // Use a model that supports reasoning
   });
 
   const response = await model.generate({
@@ -39,19 +41,21 @@ async function basicReasoningExample() {
   });
 
   console.log("\nToken usage:");
-  console.log(`Input tokens: ${response.usage?.inputTokens}`);
-  console.log(`Output tokens: ${response.usage?.outputTokens}`);
+  console.log(`Input tokens: ${response.usage?.inputTokens ?? 0}`);
+  console.log(`Output tokens: ${response.usage?.outputTokens ?? 0}`);
   console.log(
-    `Reasoning tokens: ${response.usage?.outputTokensDetail?.reasoningTokens}`,
+    `Reasoning tokens: ${response.usage?.outputTokensDetail?.reasoningTokens ?? 0}`,
   );
-  console.log(`Text tokens: ${response.usage?.outputTokensDetail?.textTokens}`);
+  console.log(`Text tokens: ${response.usage?.outputTokensDetail?.textTokens ?? 0}`);
 }
 
 // Example: Streaming reasoning tokens
 async function streamingReasoningExample() {
+  const apiKey = process.env["OPENAI_API_KEY"];
+  if (!apiKey) throw new Error("OPENAI_API_KEY is required");
   const model = new OpenAIModel({
-    apiKey: process.env["OPENAI_API_KEY"] as string,
-    modelId: "gpt-5-mini",
+    apiKey,
+    modelId: "o1-mini",
   });
 
   console.log("Streaming reasoning tokens...\n");
@@ -99,12 +103,14 @@ async function streamingReasoningExample() {
 
 // Example: Using Responses API with background processing
 async function backgroundReasoningExample() {
+  const apiKey = process.env["OPENAI_API_KEY"];
+  if (!apiKey) throw new Error("OPENAI_API_KEY is required");
   const model = new OpenAIModel({
-    apiKey: process.env["OPENAI_API_KEY"] as string,
-    modelId: "o3", // Use a model that supports background processing
+    apiKey,
+    modelId: "o1-mini", // Use a model that supports background processing
   });
 
-  const response = await model.generate({
+  const input: OpenAIResponsesLanguageModelInput = {
     messages: [
       {
         role: "user",
@@ -119,12 +125,12 @@ async function backgroundReasoningExample() {
     reasoning: {
       effort: "high",
     },
-    // Using the extended input type for Responses API options
     responsesOptions: {
       background: true, // Process in background for long-running tasks
       store: false, // Don't store for ZDR compliance
     },
-  } as OpenAILanguageModelInput); // Type assertion for the extended input
+  };
+  const response = await model.generate(input);
 
   console.log("Background processing completed!");
   response.content.forEach((part) => {
@@ -140,9 +146,11 @@ async function backgroundReasoningExample() {
 
 // Example: Comparing with and without reasoning
 async function comparisonExample() {
+  const apiKey = process.env["OPENAI_API_KEY"];
+  if (!apiKey) throw new Error("OPENAI_API_KEY is required");
   const model = new OpenAIModel({
-    apiKey: process.env["OPENAI_API_KEY"] as string,
-    modelId: "gpt-5-mini", // Use reasoning-capable model for both comparisons
+    apiKey,
+    modelId: "gpt-4", // Regular model for comparison
   });
 
   const question =
@@ -163,10 +171,10 @@ async function comparisonExample() {
       ? regularResponse.content[0].text
       : "",
   );
-  console.log(`Tokens used: ${regularResponse.usage?.outputTokens}`);
+  console.log(`Tokens used: ${regularResponse.usage?.outputTokens ?? 0}`);
 
   console.log("\n=== With Reasoning Tokens ===");
-  const reasoningResponse = await model.generate({
+  const reasoningResponse = await new OpenAIModel({ apiKey, modelId: "o1-mini" }).generate({
     messages: [
       {
         role: "user",
@@ -187,20 +195,22 @@ async function comparisonExample() {
     }
   });
 
-  console.log(`Total tokens: ${reasoningResponse.usage?.outputTokens}`);
+  console.log(`Total tokens: ${reasoningResponse.usage?.outputTokens ?? 0}`);
   console.log(
-    `Reasoning tokens: ${reasoningResponse.usage?.outputTokensDetail?.reasoningTokens}`,
+    `Reasoning tokens: ${reasoningResponse.usage?.outputTokensDetail?.reasoningTokens ?? 0}`,
   );
   console.log(
-    `Text tokens: ${reasoningResponse.usage?.outputTokensDetail?.textTokens}`,
+    `Text tokens: ${reasoningResponse.usage?.outputTokensDetail?.textTokens ?? 0}`,
   );
 }
 
 // Example: Controlling reasoning verbosity
 async function reasoningVerbosityExample() {
+  const apiKey = process.env["OPENAI_API_KEY"];
+  if (!apiKey) throw new Error("OPENAI_API_KEY is required");
   const model = new OpenAIModel({
-    apiKey: process.env["OPENAI_API_KEY"] as string,
-    modelId: "gpt-5-mini",
+    apiKey,
+    modelId: "o1-mini",
   });
 
   const problem = "Design a database schema for a social media platform.";
@@ -237,7 +247,7 @@ async function reasoningVerbosityExample() {
     }
 
     console.log(
-      `Reasoning tokens: ${response.usage?.outputTokensDetail?.reasoningTokens}`,
+      `Reasoning tokens: ${response.usage?.outputTokensDetail?.reasoningTokens ?? 0}`,
     );
   }
 }

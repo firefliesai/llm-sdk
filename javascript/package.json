@@ -8,6 +8,7 @@
     "build": "tshy && cp src/schema/schema.json dist/esm/schema/schema.json && cp src/schema/schema.json dist/commonjs/schema/schema.json",
     "lint": "eslint src",
     "test": "tsx --test --experimental-test-coverage --env-file=../.env \"**/*.test.ts\"",
+    "prepack": "npm run build",
     "example:reasoning": "tsx --env-file=../.env examples/reasoning-tokens.ts",
     "example:thinking": "tsx --env-file=../.env examples/thinking-tokens-stream.ts",
     "example:thinking:visualize": "tsx --env-file=../.env examples/thinking-tokens-stream.ts visualize"

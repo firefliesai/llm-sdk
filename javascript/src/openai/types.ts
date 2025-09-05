@@ -94,7 +94,7 @@ export interface OpenAIResponsesCreateParams {
   /**
    * Input messages or prompt (replaces 'messages' in Responses API)
    */
-  input?: string | Array<any>;
+  input?: string | Array<Record<string, unknown>>;
   /**
    * System instructions for the assistant
    */
@@ -102,11 +102,11 @@ export interface OpenAIResponsesCreateParams {
   /**
    * Tools available to the model
    */
-  tools?: Array<any>;
+  tools?: Array<Record<string, unknown>>;
   /**
    * Response format specification
    */
-  response_format?: any;
+  response_format?: Record<string, unknown>;
   /**
    * Reasoning configuration
    */
@@ -130,7 +130,7 @@ export interface OpenAIResponsesCreateParams {
   /**
    * Additional parameters
    */
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
@@ -138,7 +138,7 @@ export interface OpenAIResponsesCreateParams {
  */
 export interface OpenAIResponseEvent {
   type: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
@@ -173,8 +173,8 @@ export interface OpenAIResponseCompletedEvent extends OpenAIResponseEvent {
   response: {
     id: string;
     status: "completed";
-    output: Array<any>;
-    usage?: any;
+    output: Array<Record<string, unknown>>;
+    usage?: Record<string, unknown>;
   };
 }
 
@@ -210,7 +210,7 @@ export interface OpenAIOutputItemAddedEvent extends OpenAIResponseEvent {
     index: number;
     type: "message";
     role: "assistant";
-    content?: Array<any>;
+    content?: Array<Record<string, unknown>>;
   };
 }
 

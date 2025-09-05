@@ -32,16 +32,16 @@ import type {
   OpenAIPatchedCompletionTokenDetails,
   OpenAIPatchedPromptTokensDetails,
 } from "./types.js";
-import {
-  OpenAIResponsesClient,
-  type OpenAIResponsesLanguageModelInput,
-} from "./responses.js";
+import { OpenAIResponsesClient } from "./responses.js";
+import type { OpenAIResponsesOptions } from "./types.js";
 
 const OPENAI_AUDIO_SAMPLE_RATE = 24_000;
 const OPENAI_AUDIO_CHANNELS = 1;
 
 export type OpenAILanguageModelInput = LanguageModelInput & {
   extra?: Partial<OpenAI.Chat.Completions.ChatCompletionCreateParams>;
+  reasoning?: LanguageModelInput["reasoning"];
+  responsesOptions?: OpenAIResponsesOptions;
 };
 
 export class OpenAIModel implements LanguageModel {
@@ -70,14 +70,18 @@ export class OpenAIModel implements LanguageModel {
 
   async generate(input: OpenAILanguageModelInput): Promise<ModelResponse> {
     // Check if reasoning is requested - if so, use Responses API
-    if (
-      input.reasoning ||
-      (input as OpenAIResponsesLanguageModelInput).responsesOptions
-    ) {
-      return this.responsesClient.createResponse(
+    if (input.reasoning || input.responsesOptions) {
+      const resp = await this.responsesClient.createResponse(
         input,
-        (input as OpenAIResponsesLanguageModelInput).responsesOptions,
+        input.responsesOptions,
       );
+      return {
+        ...resp,
+        ...(this.metadata?.pricing &&
+          resp.usage && {
+            cost: calculateCost(resp.usage, this.metadata.pricing),
+          }),
+      };
     }
 
     // Use traditional Chat Completions API
@@ -114,13 +118,10 @@ export class OpenAIModel implements LanguageModel {
     input: OpenAILanguageModelInput,
   ): AsyncGenerator<PartialModelResponse, ModelResponse> {
     // Check if reasoning is requested - if so, use Responses API
-    if (
-      input.reasoning ||
-      (input as OpenAIResponsesLanguageModelInput).responsesOptions
-    ) {
+    if (input.reasoning || input.responsesOptions) {
       const generator = this.responsesClient.streamResponse(
         input,
-        (input as OpenAIResponsesLanguageModelInput).responsesOptions,
+        input.responsesOptions,
       );
 
       for await (const chunk of generator) {
@@ -261,9 +262,9 @@ export function convertToOpenAIMessages(
               break;
             }
             case "tool-call": {
-              openaiMessageParam.tool_calls =
-                openaiMessageParam.tool_calls || [];
-              openaiMessageParam.tool_calls.push({
+              openaiMessageParam["tool_calls"] =
+                openaiMessageParam["tool_calls"] || [];
+              openaiMessageParam["tool_calls"].push({
                 type: "function",
                 id: part.toolCallId,
                 function: {
@@ -277,7 +278,7 @@ export function convertToOpenAIMessages(
               if (!part.id) {
                 throw new Error("audio part must have an id");
               }
-              openaiMessageParam.audio = {
+              openaiMessageParam["audio"] = {
                 id: part.id,
               };
               break;
@@ -578,16 +579,18 @@ export function mapOpenAIMessage(
   }
 
   if (message.tool_calls) {
-    message.tool_calls.forEach((toolCall) => {
-      content.push({
-        type: "tool-call",
-        toolCallId: toolCall.id,
-        toolName: toolCall.function.name,
-        args: JSON.parse(toolCall.function.arguments) as {
-          [key: string]: unknown;
-        },
-      });
-    });
+    message.tool_calls.forEach(
+      (toolCall: OpenAI.Chat.Completions.ChatCompletionMessageToolCall) => {
+        content.push({
+          type: "tool-call",
+          toolCallId: toolCall.id,
+          toolName: toolCall.function.name,
+          args: JSON.parse(toolCall.function.arguments) as {
+            [key: string]: unknown;
+          },
+        });
+      },
+    );
   }
 
   return {
@@ -642,26 +645,30 @@ export function mapOpenAIDelta(
     const allExistingToolCalls = existingContentDeltas.filter(
       (delta) => delta.part.type === "tool-call",
     );
-    delta.tool_calls.forEach((toolCall) => {
-      const existingDelta = allExistingToolCalls[toolCall.index];
+    delta.tool_calls.forEach(
+      (
+        toolCall: OpenAI.Chat.Completions.ChatCompletionChunk.Choice.Delta.ToolCall,
+      ) => {
+        const existingDelta = allExistingToolCalls[toolCall.index];
 
-      const part: ToolCallPartDelta = {
-        type: "tool-call",
-        ...(toolCall.id && { toolCallId: toolCall.id }),
-        ...(toolCall.function?.name && { toolName: toolCall.function.name }),
-        ...(toolCall.function?.arguments && {
-          args: toolCall.function.arguments,
-        }),
-      };
-      contentDeltas.push({
-        index: guessDeltaIndex(
+        const part: ToolCallPartDelta = {
+          type: "tool-call",
+          ...(toolCall.id && { toolCallId: toolCall.id }),
+          ...(toolCall.function?.name && { toolName: toolCall.function.name }),
+          ...(toolCall.function?.arguments && {
+            args: toolCall.function.arguments,
+          }),
+        };
+        contentDeltas.push({
+          index: guessDeltaIndex(
+            part,
+            [...existingContentDeltas, ...contentDeltas],
+            existingDelta,
+          ),
           part,
-          [...existingContentDeltas, ...contentDeltas],
-          existingDelta,
-        ),
-        part,
-      });
-    });
+        });
+      },
+    );
   }
 
   return contentDeltas;
