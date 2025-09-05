@@ -76,10 +76,6 @@ export interface OpenAIResponsesOptions {
    */
   background?: boolean;
   /**
-   * Whether to store the response (affects ZDR eligibility)
-   */
-  store?: boolean;
-  /**
    * Fields to include in the response (e.g., ["reasoning.encrypted_content"])
    */
   include?: string[];

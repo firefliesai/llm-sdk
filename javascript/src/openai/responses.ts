@@ -129,9 +129,6 @@ export class OpenAIResponsesClient {
       ...(responsesOptions?.background && {
         background: responsesOptions.background,
       }),
-      ...(typeof responsesOptions?.store === "boolean" && {
-        store: responsesOptions.store,
-      }),
       ...(responsesOptions?.include && { include: responsesOptions.include }),
     } as unknown as OpenAI.Responses.ResponseCreateParams;
   }
