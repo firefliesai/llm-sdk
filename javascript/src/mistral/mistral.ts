@@ -17,7 +17,7 @@ import {
   ModelUsage,
   PartialModelResponse,
   Tool,
-  ToolCallPart
+  ToolCallPart,
 } from "../schema/index.js";
 import { convertAudioPartsToTextParts } from "../utils/message.utils.js";
 import {
