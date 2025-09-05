@@ -29,6 +29,22 @@ export interface InternalContentDelta {
 export class ContentDeltaAccumulator {
   deltas: InternalContentDelta[] = [];
 
+  /**
+   * Transform an incoming content delta part for internal storage.
+   * Converts audio parts to use ArrayBuffer[] instead of base64 string.
+   */
+  private transformPartForStorage(
+    part: ContentDelta["part"],
+  ): InternalContentDelta["part"] {
+    if (part.type === "audio") {
+      return {
+        ...part,
+        audioData: part.audioData ? [base64ToArrayBuffer(part.audioData)] : [],
+      };
+    }
+    return part;
+  }
+
   addChunks(incomingDeltas: ContentDelta[]) {
     for (const incomingDelta of incomingDeltas) {
       const existingDelta = this.deltas.find(
@@ -102,32 +118,14 @@ export class ContentDeltaAccumulator {
           // treat as separate parts rather than trying to merge them
           this.deltas.push({
             index: incomingDelta.index,
-            part: {
-              ...(incomingDelta.part.type === "audio"
-                ? {
-                    ...incomingDelta.part,
-                    audioData: incomingDelta.part.audioData
-                      ? [base64ToArrayBuffer(incomingDelta.part.audioData)]
-                      : [],
-                  }
-                : incomingDelta.part),
-            },
+            part: this.transformPartForStorage(incomingDelta.part),
           });
           continue;
         }
       } else {
         this.deltas.push({
           index: incomingDelta.index,
-          part: {
-            ...(incomingDelta.part.type === "audio"
-              ? {
-                  ...incomingDelta.part,
-                  audioData: incomingDelta.part.audioData
-                    ? [base64ToArrayBuffer(incomingDelta.part.audioData)]
-                    : [],
-                }
-              : incomingDelta.part),
-          },
+          part: this.transformPartForStorage(incomingDelta.part),
         });
       }
     }
