@@ -20,8 +20,6 @@ import type {
   ResponseCompletedEventWithUsage,
 } from "./types.js";
 
-// Note: Using type assertions to access the responses API since the SDK types may not be fully compatible
-
 /**
  * OpenAI Responses API client for handling thinking tokens and reasoning
  */
@@ -120,8 +118,8 @@ export class OpenAIResponsesClient {
           ...(input.reasoning.effort && { effort: input.reasoning.effort }),
           ...(input.reasoning.summary && { summary: input.reasoning.summary }),
         },
-        ...(input.reasoning.maxTokens && { max_output_tokens: input.reasoning.maxTokens }),
       }),
+      ...(input.reasoning?.maxTokens && { max_output_tokens: input.reasoning.maxTokens }),
       ...(responsesOptions?.background && { background: responsesOptions.background }),
       ...(typeof responsesOptions?.store === "boolean" && { store: responsesOptions.store }),
       ...(responsesOptions?.include && { include: responsesOptions.include }),
@@ -135,7 +133,6 @@ export class OpenAIResponsesClient {
     input: LanguageModelInput,
   ): OpenAI.Responses.ResponseInput[] {
     const messages = convertToOpenAIMessages(input, this.options);
-
     
     return messages.map((message: any) => {
       if (!message.content) return message;
@@ -209,8 +206,6 @@ export class OpenAIResponsesClient {
     return contentDeltas;
   }
 
-
-
   /**
    * Map OpenAI response to SDK ModelResponse
    */
@@ -224,16 +219,10 @@ export class OpenAIResponsesClient {
       for (const item of response.output) {
         // Handle reasoning items
         if (item.type === "reasoning") {
-          const reasoningItem = item; // ResponseReasoningItem type
-          if (reasoningItem.summary && Array.isArray(reasoningItem.summary)) {
-            // Combine all summary texts
-            const reasoningText = reasoningItem.summary
-              .map(s => s.text)
-              .join('\n');
-            
+          if (item.summary && Array.isArray(item.summary)) {
             const reasoningPart: ReasoningPart = {
               type: "reasoning",
-              reasoning: reasoningText,
+              reasoning: item.summary.map(s => s.text).join('\n'),
               summary: true, // Items in output are always summary
             };
             content.push(reasoningPart);
@@ -246,7 +235,7 @@ export class OpenAIResponsesClient {
             if (part.type === "output_text") {
               content.push({
                 type: "text",
-                text: part.text as string,
+                text: part.text,
               });
             }
             // Handle other content types as needed
@@ -275,17 +264,17 @@ export class OpenAIResponsesClient {
   private mapUsage(
     usage: OpenAI.Responses.ResponseUsage,
   ): ModelResponse["usage"] | undefined {
-    const reasoningTokens = usage.output_tokens_details.reasoning_tokens || 0;
     const outputTokens = usage.output_tokens || 0;
+    const reasoningTokens = usage.output_tokens_details.reasoning_tokens || 0;
 
     const result: ModelResponse["usage"] = {
       inputTokens: usage.input_tokens || 0,
-      outputTokens: outputTokens,
+      outputTokens,
     };
 
     if (reasoningTokens > 0) {
       result.outputTokensDetail = {
-        reasoningTokens: reasoningTokens,
+        reasoningTokens,
         textTokens: outputTokens - reasoningTokens,
       };
     }
