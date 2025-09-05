@@ -1,3 +1,5 @@
+import OpenAI from "openai";
+
 export interface OpenAIModelOptions {
   baseURL?: string;
   apiKey: string;
@@ -84,153 +86,17 @@ export interface OpenAIResponsesOptions {
 }
 
 /**
- * OpenAI Responses API request parameters
- */
-export interface OpenAIResponsesCreateParams {
-  /**
-   * The model to use for the response
-   */
-  model: string;
-  /**
-   * Input messages or prompt (replaces 'messages' in Responses API)
-   */
-  input?: string | Array<Record<string, unknown>>;
-  /**
-   * System instructions for the assistant
-   */
-  instructions?: string;
-  /**
-   * Tools available to the model
-   */
-  tools?: Array<Record<string, unknown>>;
-  /**
-   * Response format specification
-   */
-  response_format?: Record<string, unknown>;
-  /**
-   * Reasoning configuration
-   */
-  reasoning?: OpenAIReasoningOptions;
-  /**
-   * Whether to stream the response
-   */
-  stream?: boolean;
-  /**
-   * Background processing mode
-   */
-  background?: boolean;
-  /**
-   * Storage configuration
-   */
-  store?: boolean;
-  /**
-   * Fields to include in response
-   */
-  include?: string[];
-  /**
-   * Additional parameters
-   */
-  [key: string]: unknown;
-}
-
-/**
- * Base response event from OpenAI Responses API
- */
-export interface OpenAIResponseEvent {
-  type: string;
-  [key: string]: unknown;
-}
-
-/**
- * Response created event
- */
-export interface OpenAIResponseCreatedEvent extends OpenAIResponseEvent {
-  type: "response.created";
-  response: {
-    id: string;
-    object: "response";
-    created_at: number;
-    status: "in_progress" | "completed" | "failed";
-  };
-}
-
-/**
- * Response in progress event
- */
-export interface OpenAIResponseInProgressEvent extends OpenAIResponseEvent {
-  type: "response.in_progress";
-  response: {
-    id: string;
-    status: "in_progress";
-  };
-}
-
-/**
- * Response completed event
- */
-export interface OpenAIResponseCompletedEvent extends OpenAIResponseEvent {
-  type: "response.completed";
-  response: {
-    id: string;
-    status: "completed";
-    output: Array<Record<string, unknown>>;
-    usage?: Record<string, unknown>;
-  };
-}
-
-/**
- * Reasoning summary part added event
- */
-export interface OpenAIReasoningSummaryPartAddedEvent
-  extends OpenAIResponseEvent {
-  type: "response.reasoning_summary_part.added";
-  part: {
-    index: number;
-    type: "reasoning_summary";
-    content?: string;
-  };
-}
-
-/**
- * Reasoning summary text delta event
- */
-export interface OpenAIReasoningSummaryTextDeltaEvent
-  extends OpenAIResponseEvent {
-  type: "response.reasoning_summary_text.delta";
-  delta: string;
-  index: number;
-}
-
-/**
- * Output item added event
- */
-export interface OpenAIOutputItemAddedEvent extends OpenAIResponseEvent {
-  type: "response.output_item.added";
-  item: {
-    index: number;
-    type: "message";
-    role: "assistant";
-    content?: Array<Record<string, unknown>>;
-  };
-}
-
-/**
- * Output text delta event
- */
-export interface OpenAIOutputTextDeltaEvent extends OpenAIResponseEvent {
-  type: "response.output_text.delta";
-  delta: string;
-  index: number;
-}
-
-/**
  * Union type for all OpenAI Response events
  */
-export type OpenAIResponseStreamEvent =
-  | OpenAIResponseCreatedEvent
-  | OpenAIResponseInProgressEvent
-  | OpenAIResponseCompletedEvent
-  | OpenAIReasoningSummaryPartAddedEvent
-  | OpenAIReasoningSummaryTextDeltaEvent
-  | OpenAIOutputItemAddedEvent
-  | OpenAIOutputTextDeltaEvent;
+// OpenAIResponseStreamEvent is now replaced with OpenAI.Responses.ResponseStreamEvent from the official SDK
+export type OpenAIResponseStreamEvent = OpenAI.Responses.ResponseStreamEvent;
+
+/**
+ * Extended ResponseCompletedEvent with easier access to usage information
+ * This extends the official OpenAI type to provide better TypeScript support
+ */
+export interface ResponseCompletedEventWithUsage extends OpenAI.Responses.ResponseCompletedEvent {
+  response: OpenAI.Responses.Response & {
+    usage: OpenAI.Responses.ResponseUsage;
+  };
+}

@@ -16,10 +16,8 @@ import {
 } from "./openai.js";
 import type {
   OpenAIModelOptions,
-  OpenAIResponsesCreateParams,
-  OpenAIResponseStreamEvent,
-  OpenAIReasoningOptions,
   OpenAIResponsesOptions,
+  ResponseCompletedEventWithUsage,
 } from "./types.js";
 
 // Note: Using type assertions to access the responses API since the SDK types may not be fully compatible
@@ -65,7 +63,7 @@ export class OpenAIResponsesClient {
 
     const stream = this.makeResponsesStreamRequest(params);
     const accumulator = new ContentDeltaAccumulator();
-    let finalResponse: Record<string, unknown> | undefined;
+    let finalResponse: ResponseCompletedEventWithUsage | undefined;
 
     for await (const event of stream) {
       const contentDeltas = this.mapEventToContentDeltas(event);
@@ -80,7 +78,7 @@ export class OpenAIResponsesClient {
 
       // Store final response for usage information
       if (event.type === "response.completed") {
-        finalResponse = event.response;
+        finalResponse = event as ResponseCompletedEventWithUsage;
       }
     }
 
@@ -88,9 +86,9 @@ export class OpenAIResponsesClient {
       content: accumulator.computeContent(),
     };
 
-    if (finalResponse && finalResponse["usage"]) {
+    if (finalResponse && finalResponse.response.usage) {
       const usage = this.mapUsage(
-        finalResponse["usage"] as Record<string, unknown>,
+        finalResponse.response.usage,
       );
       if (usage) {
         result.usage = usage;
@@ -106,7 +104,7 @@ export class OpenAIResponsesClient {
   private buildResponsesParams(
     input: LanguageModelInput,
     responsesOptions?: OpenAIResponsesOptions,
-  ): OpenAIResponsesCreateParams {
+  ): OpenAI.Responses.ResponseCreateParams {
     const messages = this.convertToResponsesAPIMessages(input);
 
     const baseParams = {
@@ -132,7 +130,12 @@ export class OpenAIResponsesClient {
 
     const reasoningParams = input.reasoning
       ? {
-          reasoning: this.mapReasoningOptions(input.reasoning),
+          reasoning: {
+            ...(input.reasoning.effort && { effort: input.reasoning.effort }),
+            ...(input.reasoning.summary && { summary: input.reasoning.summary }),
+          },
+          // Handle maxTokens at top level as per OpenAI SDK
+          ...(input.reasoning.maxTokens && { max_output_tokens: input.reasoning.maxTokens }),
         }
       : {};
 
@@ -162,7 +165,7 @@ export class OpenAIResponsesClient {
       ...backgroundParams,
       ...storeParams,
       ...includeParams,
-    } as OpenAIResponsesCreateParams;
+    } as unknown as OpenAI.Responses.ResponseCreateParams;
   }
 
   /**
@@ -226,26 +229,10 @@ export class OpenAIResponsesClient {
   }
 
   /**
-   * Map SDK reasoning options to OpenAI reasoning options
-   */
-  private mapReasoningOptions(
-    reasoning: NonNullable<LanguageModelInput["reasoning"]>,
-  ): OpenAIReasoningOptions {
-    return {
-      ...(reasoning.effort && { effort: reasoning.effort }),
-      ...(reasoning.maxTokens && { max_tokens: reasoning.maxTokens }),
-      ...(typeof reasoning.exclude === "boolean" && {
-        exclude: reasoning.exclude,
-      }),
-      ...(reasoning.summary && { summary: reasoning.summary }),
-    };
-  }
-
-  /**
    * Map OpenAI response events to content deltas
    */
   private mapEventToContentDeltas(
-    event: OpenAIResponseStreamEvent,
+    event: OpenAI.Responses.ResponseStreamEvent,
   ): ContentDelta[] {
     const contentDeltas: ContentDelta[] = [];
 
@@ -257,14 +244,14 @@ export class OpenAIResponsesClient {
           summary: true,
         };
         contentDeltas.push({
-          index: event.index || 0,
+          index: event.output_index || 0,
           part,
         });
         break;
       }
       case "response.output_text.delta": {
         contentDeltas.push({
-          index: event.index || 0,
+          index: event.output_index || 0,
           part: {
             type: "text",
             text: event.delta,
@@ -282,7 +269,7 @@ export class OpenAIResponsesClient {
    * Make request to OpenAI Responses API using OpenAI SDK's native responses.create
    */
   private async makeResponsesRequest(
-    params: OpenAIResponsesCreateParams,
+    params: OpenAI.Responses.ResponseCreateParams,
   ): Promise<Record<string, unknown>> {
     // Use OpenAI SDK's native responses.create method
     const response = await this.openai.responses.create(
@@ -295,28 +282,12 @@ export class OpenAIResponsesClient {
    * Make streaming request to OpenAI Responses API using OpenAI SDK's native responses.stream
    */
   private makeResponsesStreamRequest(
-    params: OpenAIResponsesCreateParams,
-  ): AsyncIterable<OpenAIResponseStreamEvent> {
-    // Use OpenAI SDK's native responses.stream method
-    const stream = this.openai.responses.stream(
+    params: OpenAI.Responses.ResponseCreateParams,
+  ): AsyncIterable<OpenAI.Responses.ResponseStreamEvent> {
+    // Use OpenAI SDK's native responses.stream method - no conversion needed
+    return this.openai.responses.stream(
       params as unknown as Parameters<typeof this.openai.responses.stream>[0],
     );
-
-    // Convert OpenAI SDK stream events to our format
-    return this.convertOpenAIStreamToOurFormat(stream);
-  }
-
-  /**
-   * Convert OpenAI SDK stream events to our format
-   */
-  private async *convertOpenAIStreamToOurFormat(
-    stream: AsyncIterable<unknown>,
-  ): AsyncGenerator<OpenAIResponseStreamEvent> {
-    for await (const event of stream) {
-      // The OpenAI SDK events should already be in the correct format,
-      // but we can add any necessary transformations here
-      yield event as OpenAIResponseStreamEvent;
-    }
   }
 
   /**
@@ -362,7 +333,7 @@ export class OpenAIResponsesClient {
     };
 
     if (response["usage"]) {
-      const usage = this.mapUsage(response["usage"] as Record<string, unknown>);
+      const usage = this.mapUsage(response["usage"] as OpenAI.Responses.ResponseUsage);
       if (usage) {
         result.usage = usage;
       }
@@ -375,17 +346,13 @@ export class OpenAIResponsesClient {
    * Map OpenAI usage to SDK usage format
    */
   private mapUsage(
-    usage: Record<string, unknown>,
+    usage: OpenAI.Responses.ResponseUsage,
   ): ModelResponse["usage"] | undefined {
-    const outputTokensDetails = usage["output_tokens_details"] as
-      | Record<string, unknown>
-      | undefined;
-    const reasoningTokens =
-      (outputTokensDetails?.["reasoning_tokens"] as number) || 0;
-    const outputTokens = (usage["output_tokens"] as number) || 0;
+    const reasoningTokens = usage.output_tokens_details.reasoning_tokens || 0;
+    const outputTokens = usage.output_tokens || 0;
 
     const result: ModelResponse["usage"] = {
-      inputTokens: (usage["input_tokens"] as number) || 0,
+      inputTokens: usage.input_tokens || 0,
       outputTokens: outputTokens,
     };
 
