@@ -48,7 +48,7 @@ export class OpenAIResponsesClient {
     // Make request to OpenAI Responses API endpoint
     const response = await this.openai.responses.create(params);
 
-    return this.mapResponseToModelResponse(response);
+    return this.mapResponseToModelResponse(response as OpenAI.Responses.Response);
   }
 
   /**
@@ -243,7 +243,7 @@ export class OpenAIResponsesClient {
         else if (item.type === "message" && item.content) {
           const contentParts = item.content;
           for (const part of contentParts) {
-            if (part.type === "text") {
+            if (part.type === "output_text") {
               content.push({
                 type: "text",
                 text: part.text as string,
