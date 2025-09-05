@@ -119,83 +119,42 @@ async function streamThinkingTokens() {
 class ThinkingTokenVisualizer {
   private thinkingBuffer = "";
   private responseBuffer = "";
-  private lastUpdate = Date.now();
-  private updateInterval = 100; // Update UI every 100ms
 
   async visualize(stream: AsyncGenerator<PartialModelResponse>) {
     console.clear();
-    console.log("🧠 Thinking Token Visualizer\n");
+    console.log("🧠 Thinking Token Visualizer");
+    console.log("=".repeat(80));
+    console.log("\n💭 THINKING PROCESS:");
+    console.log("─".repeat(40));
+    console.log("Starting to capture thinking tokens...\n");
 
     for await (const chunk of stream) {
       const part = chunk.delta.part;
-      const now = Date.now();
 
       if (part.type === "reasoning" && part.reasoning) {
         this.thinkingBuffer += part.reasoning;
+
+        // Show real-time thinking progress
+        process.stdout.write(part.reasoning);
       } else if (part.type === "text" && part.text) {
         this.responseBuffer += part.text;
-      }
 
-      // Update display periodically to avoid overwhelming the terminal
-      if (now - this.lastUpdate > this.updateInterval) {
-        this.updateDisplay();
-        this.lastUpdate = now;
-      }
-    }
-
-    // Final update
-    this.updateDisplay();
-  }
-
-  private updateDisplay() {
-    console.clear();
-    console.log("🧠 Thinking Token Visualizer");
-    console.log("=".repeat(80));
-
-    console.log("\n💭 THINKING PROCESS:");
-    console.log("─".repeat(40));
-    const thinkingPreview = this.thinkingBuffer.slice(-200); // Show last 200 chars
-    console.log(this.formatText(thinkingPreview, 70));
-    console.log(
-      `\n[Thinking length: ${this.thinkingBuffer.length} characters]`,
-    );
-
-    if (this.responseBuffer) {
-      console.log("\n💬 RESPONSE:");
-      console.log("─".repeat(40));
-      console.log(this.formatText(this.responseBuffer, 70));
-    }
-
-    // Add a blinking cursor effect for active thinking
-    if (this.responseBuffer === "") {
-      process.stdout.write(" ▊");
-    }
-  }
-
-  private formatText(text: string, maxWidth: number): string {
-    const words = text.split(" ");
-    const lines: string[] = [];
-    let currentLine = "";
-
-    for (const word of words) {
-      if ((currentLine + word).length > maxWidth) {
-        if (currentLine) {
-          lines.push(currentLine.trim());
-          currentLine = word + " ";
-        } else {
-          lines.push(word.slice(0, maxWidth));
-          currentLine = word.slice(maxWidth) + " ";
+        // When we start getting response, show the transition
+        if (this.responseBuffer === part.text) {
+          console.log("\n\n💬 RESPONSE:");
+          console.log("─".repeat(40));
         }
-      } else {
-        currentLine += word + " ";
+
+        // Show response in real-time
+        process.stdout.write(part.text);
       }
     }
 
-    if (currentLine) {
-      lines.push(currentLine.trim());
-    }
-
-    return lines.join("\n");
+    // Final summary
+    console.log("\n\n📊 SUMMARY:");
+    console.log("─".repeat(40));
+    console.log(`💭 Thinking tokens: ${this.thinkingBuffer.length} characters`);
+    console.log(`💬 Response tokens: ${this.responseBuffer.length} characters`);
   }
 }
 
@@ -224,6 +183,7 @@ async function visualizedThinkingExample() {
     ],
     reasoning: {
       effort: "high",
+      summary: "auto", // Add summary option to match working example
     },
   });
 
