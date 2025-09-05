@@ -175,6 +175,56 @@ export interface ToolResultPart {
   isError?: boolean;
 }
 /**
+ * A part of the message that contains reasoning/thinking content.
+ *
+ * This interface was referenced by `LlmSdk`'s JSON-Schema
+ * via the `definition` "ReasoningPart".
+ */
+export interface ReasoningPart {
+  type: "reasoning";
+  /**
+   * The reasoning/thinking content
+   */
+  reasoning: string;
+  /**
+   * Whether this is a summary of the reasoning process
+   */
+  summary?: boolean;
+  /**
+   * The encrypted signature that identifies this reasoning block. Required for the model to recognize and process the reasoning content.
+   */
+  signature?: string;
+  /**
+   * The optional ID of the part.
+   */
+  id?: string;
+}
+/**
+ * A delta update for reasoning/thinking content.
+ *
+ * This interface was referenced by `LlmSdk`'s JSON-Schema
+ * via the `definition` "ReasoningPartDelta".
+ */
+export interface ReasoningPartDelta {
+  type: "reasoning";
+  /**
+   * The partial reasoning/thinking content
+   */
+  reasoning?: string;
+  /**
+   * Whether this is a summary of the reasoning process
+   */
+  summary?: boolean;
+  /**
+   * The encrypted signature that identifies this reasoning block. Required for the model to recognize and process the reasoning content.
+   */
+  signature?: string;
+  /**
+   * The optional ID of the part.
+   */
+  id?: string;
+}
+/**
  * Represents a message sent by the user.
  *
  * This interface was referenced by `LlmSdk`'s JSON-Schema
@@ -258,48 +308,6 @@ export interface AudioPartDelta {
    */
   id?: string;
 }
-/**
- * A part of the message that contains reasoning/thinking content.
- *
- * This interface was referenced by `LlmSdk`'s JSON-Schema
- * via the `definition` "ReasoningPart".
- */
-export interface ReasoningPart {
-  type: "reasoning";
-  /**
-   * The reasoning/thinking content
-   */
-  reasoning: string;
-  /**
-   * Whether this is a summary of the reasoning process
-   */
-  summary?: boolean;
-  /**
-   * The optional ID of the part.
-   */
-  id?: string;
-}
-
-/**
- * This interface was referenced by `LlmSdk`'s JSON-Schema
- * via the `definition` "ReasoningPartDelta".
- */
-export interface ReasoningPartDelta {
-  type: "reasoning";
-  /**
-   * The partial reasoning/thinking content
-   */
-  reasoning?: string;
-  /**
-   * Whether this is a summary of the reasoning process
-   */
-  summary?: boolean;
-  /**
-   * The optional ID of the part.
-   */
-  id?: string;
-}
-
 /**
  * This interface was referenced by `LlmSdk`'s JSON-Schema
  * via the `definition` "ContentDelta".
@@ -452,8 +460,7 @@ export interface ResponseFormatJson {
  */
 export interface ReasoningOptions {
   /**
-   * Effort level for reasoning: "low", "medium", or "high"
-   * Controls the depth of reasoning provided
+   * Effort level for reasoning: "low", "medium", or "high". Controls the depth of reasoning provided
    */
   effort?: "low" | "medium" | "high";
   /**
@@ -461,17 +468,14 @@ export interface ReasoningOptions {
    */
   maxTokens?: number;
   /**
-   * Whether to include reasoning tokens in the response
-   * Default: false (include reasoning tokens)
+   * Whether to include reasoning tokens in the response. Default: false (include reasoning tokens)
    */
   exclude?: boolean;
   /**
-   * Whether to generate automatic reasoning summaries
-   * Can be "auto" for automatic summaries
+   * Whether to generate automatic reasoning summaries. Can be "auto" for automatic summaries
    */
   summary?: "auto";
 }
-
 /**
  * This interface was referenced by `LlmSdk`'s JSON-Schema
  * via the `definition` "LanguageModelInput".

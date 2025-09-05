@@ -40,7 +40,6 @@ const OPENAI_AUDIO_CHANNELS = 1;
 
 export type OpenAILanguageModelInput = LanguageModelInput & {
   extra?: Partial<OpenAI.Chat.Completions.ChatCompletionCreateParams>;
-  reasoning?: LanguageModelInput["reasoning"];
   responsesOptions?: OpenAIResponsesOptions;
 };
 
