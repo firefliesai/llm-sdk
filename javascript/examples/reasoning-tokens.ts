@@ -1,6 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/restrict-template-expressions */
-import { OpenAIModel, OpenAIResponsesLanguageModelInput } from "../src/openai/index.js";
+import {
+  OpenAIModel,
+  OpenAIResponsesLanguageModelInput,
+} from "../src/openai/index.js";
 
 // Example: Using reasoning tokens with OpenAI Responses API
 async function basicReasoningExample() {
@@ -8,7 +11,7 @@ async function basicReasoningExample() {
   if (!apiKey) throw new Error("OPENAI_API_KEY is required");
   const model = new OpenAIModel({
     apiKey,
-    modelId: "o1-mini", // Use a model that supports reasoning
+    modelId: "gpt-5-mini", // Use a model that supports reasoning
   });
 
   const response = await model.generate({
@@ -46,7 +49,9 @@ async function basicReasoningExample() {
   console.log(
     `Reasoning tokens: ${response.usage?.outputTokensDetail?.reasoningTokens ?? 0}`,
   );
-  console.log(`Text tokens: ${response.usage?.outputTokensDetail?.textTokens ?? 0}`);
+  console.log(
+    `Text tokens: ${response.usage?.outputTokensDetail?.textTokens ?? 0}`,
+  );
 }
 
 // Example: Streaming reasoning tokens
@@ -55,7 +60,7 @@ async function streamingReasoningExample() {
   if (!apiKey) throw new Error("OPENAI_API_KEY is required");
   const model = new OpenAIModel({
     apiKey,
-    modelId: "o1-mini",
+    modelId: "gpt-5-mini",
   });
 
   console.log("Streaming reasoning tokens...\n");
@@ -107,7 +112,7 @@ async function backgroundReasoningExample() {
   if (!apiKey) throw new Error("OPENAI_API_KEY is required");
   const model = new OpenAIModel({
     apiKey,
-    modelId: "o1-mini", // Use a model that supports background processing
+    modelId: "gpt-5-mini", // Use a model that supports background processing
   });
 
   const input: OpenAIResponsesLanguageModelInput = {
@@ -174,7 +179,10 @@ async function comparisonExample() {
   console.log(`Tokens used: ${regularResponse.usage?.outputTokens ?? 0}`);
 
   console.log("\n=== With Reasoning Tokens ===");
-  const reasoningResponse = await new OpenAIModel({ apiKey, modelId: "o1-mini" }).generate({
+  const reasoningResponse = await new OpenAIModel({
+    apiKey,
+    modelId: "gpt-5-mini",
+  }).generate({
     messages: [
       {
         role: "user",
@@ -210,7 +218,7 @@ async function reasoningVerbosityExample() {
   if (!apiKey) throw new Error("OPENAI_API_KEY is required");
   const model = new OpenAIModel({
     apiKey,
-    modelId: "o1-mini",
+    modelId: "gpt-5-mini",
   });
 
   const problem = "Design a database schema for a social media platform.";

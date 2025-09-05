@@ -17,8 +17,7 @@ import {
   ModelUsage,
   PartialModelResponse,
   Tool,
-  ToolCallPart,
-  ToolCallPartDelta,
+  ToolCallPart
 } from "../schema/index.js";
 import { convertAudioPartsToTextParts } from "../utils/message.utils.js";
 import {
@@ -185,9 +184,9 @@ export function convertToMistralMessages(
               break;
             }
             case "tool-call": {
-              mistralMessageParam["toolCalls"] =
-                mistralMessageParam["toolCalls"] || [];
-              mistralMessageParam["toolCalls"].push({
+              mistralMessageParam.toolCalls =
+                mistralMessageParam.toolCalls || [];
+              mistralMessageParam.toolCalls.push({
                 type: "function",
                 id: part.toolCallId,
                 function: {
@@ -354,24 +353,22 @@ export function mapMistralMessage(
     });
   }
   if (Array.isArray(message.content)) {
-    message.content.forEach((chunk: Record<string, unknown>) => {
-      switch (chunk["type"]) {
+    message.content.forEach((chunk: MistralComponents.ContentChunk) => {
+      switch (chunk.type) {
         case "text":
           content.push({
             type: "text",
-            text: chunk["text"] as string,
+            text: chunk.text,
           });
           break;
         case "image_url":
         case "reference":
-          throw new NotImplementedError(
-            "message.part",
-            chunk["type"] as string,
-          );
+          throw new NotImplementedError("message.part", chunk.type);
         default: {
+          const exhaustiveCheck: never = chunk;
           throw new NotImplementedError(
             "message.part",
-            chunk["type"] as string,
+            (exhaustiveCheck as { type: string }).type,
           );
         }
       }
@@ -379,29 +376,26 @@ export function mapMistralMessage(
   }
 
   if (message.toolCalls) {
-    message.toolCalls.forEach((toolCall: Record<string, unknown>) => {
-      if (!toolCall["id"]) {
+    message.toolCalls.forEach((toolCall: MistralComponents.ToolCall) => {
+      if (!toolCall.id) {
         throw new Error("toolCall.id is missing");
       }
       let args: ToolCallPart["args"] = null;
-      const toolFunction = toolCall["function"] as Record<string, unknown>;
+      const toolFunction = toolCall.function;
 
-      if (typeof toolFunction["arguments"] === "string") {
-        args = JSON.parse(toolFunction["arguments"]) as {
+      if (typeof toolFunction.arguments === "string") {
+        args = JSON.parse(toolFunction.arguments) as {
           [key: string]: unknown;
         };
       }
-      if (
-        typeof toolFunction["arguments"] === "object" &&
-        toolFunction["arguments"] !== null
-      ) {
-        args = toolFunction["arguments"] as { [k: string]: unknown };
+      if (typeof toolFunction.arguments === "object") {
+        args = toolFunction.arguments;
       }
 
       content.push({
         type: "tool-call",
-        toolCallId: toolCall["id"] as string,
-        toolName: toolFunction["name"] as string,
+        toolCallId: toolCall.id,
+        toolName: toolFunction.name,
         args,
       });
     });
@@ -428,55 +422,52 @@ export function mapMistralDelta(
     });
   }
   if (Array.isArray(delta.content)) {
-    delta.content.forEach((chunk: Record<string, unknown>) => {
-      switch (chunk["type"]) {
+    delta.content.forEach((chunk: MistralComponents.ContentChunk) => {
+      switch (chunk.type) {
         case "text": {
           const existingDelta = existingContentDeltas.find(
             (delta) => delta.part.type === "text",
           );
           contentDeltas.push({
             index: existingDelta ? existingDelta.index : contentDeltas.length,
-            part: { type: "text", text: chunk["text"] as string },
+            part: { type: "text", text: chunk.text },
           });
           break;
         }
         case "image_url":
         case "reference":
-          throw new NotImplementedError(
-            "message.part",
-            chunk["type"] as string,
-          );
+          throw new NotImplementedError("message.part", chunk.type);
         default: {
+          const exhaustiveCheck: never = chunk;
           throw new NotImplementedError(
             "message.part",
-            chunk["type"] as string,
+            (exhaustiveCheck as { type: string }).type,
           );
         }
       }
     });
   }
   if (delta.toolCalls) {
-    delta.toolCalls.forEach((toolCall: Record<string, unknown>) => {
+    delta.toolCalls.forEach((toolCall: MistralComponents.ToolCall) => {
       // This is unsafe because it leads to mismatched tool calls
       // but from the Mistral API, it seems like the tool calls are
       // always streamed at once
-      const toolFunction = toolCall["function"] as Record<string, unknown>;
+      const toolFunction = toolCall.function;
       let args: string;
-      if (typeof toolFunction["arguments"] === "string") {
-        args = toolFunction["arguments"];
+      if (typeof toolFunction.arguments === "string") {
+        args = toolFunction.arguments;
       } else {
-        args = JSON.stringify(toolFunction["arguments"]);
+        args = JSON.stringify(toolFunction.arguments);
       }
-      const cleanedPart: ToolCallPartDelta = {
-        type: "tool-call",
-        toolCallId: toolCall["id"] as string,
-        toolName: toolFunction["name"] as string,
-        args,
-      };
 
       contentDeltas.push({
         index: contentDeltas.length,
-        part: cleanedPart,
+        part: {
+          type: "tool-call",
+          ...(toolCall.id && { toolCallId: toolCall.id }),
+          ...(toolCall.function.name && { toolName: toolCall.function.name }),
+          ...(args && { args }),
+        },
       });
     });
   }

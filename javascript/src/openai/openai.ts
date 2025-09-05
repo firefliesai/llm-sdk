@@ -262,9 +262,9 @@ export function convertToOpenAIMessages(
               break;
             }
             case "tool-call": {
-              openaiMessageParam["tool_calls"] =
-                openaiMessageParam["tool_calls"] || [];
-              openaiMessageParam["tool_calls"].push({
+              openaiMessageParam.tool_calls =
+                openaiMessageParam.tool_calls || [];
+              openaiMessageParam.tool_calls.push({
                 type: "function",
                 id: part.toolCallId,
                 function: {
@@ -278,7 +278,7 @@ export function convertToOpenAIMessages(
               if (!part.id) {
                 throw new Error("audio part must have an id");
               }
-              openaiMessageParam["audio"] = {
+              openaiMessageParam.audio = {
                 id: part.id,
               };
               break;
