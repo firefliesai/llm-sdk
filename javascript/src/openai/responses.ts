@@ -9,7 +9,6 @@ import type {
 } from "../schema/index.js";
 import { ContentDeltaAccumulator } from "../utils/stream.utils.js";
 import {
-  convertToOpenAIMessages,
   convertToOpenAITool,
   convertToOpenAIToolChoice,
   convertToOpenAISamplingParams,
@@ -46,7 +45,9 @@ export class OpenAIResponsesClient {
     // Make request to OpenAI Responses API endpoint
     const response = await this.openai.responses.create(params);
 
-    return this.mapResponseToModelResponse(response as OpenAI.Responses.Response);
+    return this.mapResponseToModelResponse(
+      response as OpenAI.Responses.Response,
+    );
   }
 
   /**
@@ -56,7 +57,10 @@ export class OpenAIResponsesClient {
     input: LanguageModelInput,
     responsesOptions?: OpenAIResponsesOptions,
   ): AsyncGenerator<PartialModelResponse, ModelResponse> {
-    const params = this.buildResponsesParams(input, responsesOptions) as OpenAI.Responses.ResponseCreateParamsStreaming;
+    const params = this.buildResponsesParams(
+      input,
+      responsesOptions,
+    ) as OpenAI.Responses.ResponseCreateParamsStreaming;
     params.stream = true;
 
     const stream = this.openai.responses.stream(params);
@@ -84,10 +88,8 @@ export class OpenAIResponsesClient {
       content: accumulator.computeContent(),
     };
 
-    if (finalResponse && finalResponse.response.usage) {
-      const usage = this.mapUsage(
-        finalResponse.response.usage,
-      );
+    if (finalResponse?.response.usage) {
+      const usage = this.mapUsage(finalResponse.response.usage);
       if (usage) {
         result.usage = usage;
       }
@@ -108,7 +110,9 @@ export class OpenAIResponsesClient {
       input: this.convertToResponsesAPIMessages(input),
       ...convertToOpenAISamplingParams(input),
       ...(input.tools && {
-        tools: input.tools.map((tool) => convertToOpenAITool(tool, this.options)),
+        tools: input.tools.map((tool) =>
+          convertToOpenAITool(tool, this.options),
+        ),
       }),
       ...(input.toolChoice && {
         tool_choice: convertToOpenAIToolChoice(input.toolChoice),
@@ -119,9 +123,15 @@ export class OpenAIResponsesClient {
           ...(input.reasoning.summary && { summary: input.reasoning.summary }),
         },
       }),
-      ...(input.reasoning?.maxTokens && { max_output_tokens: input.reasoning.maxTokens }),
-      ...(responsesOptions?.background && { background: responsesOptions.background }),
-      ...(typeof responsesOptions?.store === "boolean" && { store: responsesOptions.store }),
+      ...(input.reasoning?.maxTokens && {
+        max_output_tokens: input.reasoning.maxTokens,
+      }),
+      ...(responsesOptions?.background && {
+        background: responsesOptions.background,
+      }),
+      ...(typeof responsesOptions?.store === "boolean" && {
+        store: responsesOptions.store,
+      }),
       ...(responsesOptions?.include && { include: responsesOptions.include }),
     } as unknown as OpenAI.Responses.ResponseCreateParams;
   }
@@ -131,42 +141,122 @@ export class OpenAIResponsesClient {
    */
   private convertToResponsesAPIMessages(
     input: LanguageModelInput,
-  ): OpenAI.Responses.ResponseInput[] {
-    const messages = convertToOpenAIMessages(input, this.options);
-    
-    return messages.map((message: any) => {
-      if (!message.content) return message;
+  ): OpenAI.Responses.ResponseInput {
+    const responseMessages: OpenAI.Responses.EasyInputMessage[] = [];
 
-      const isUser = message.role === "user";
-      const textType = isUser ? "input_text" : "output_text";
+    // Add system prompt if present
+    if (input.systemPrompt) {
+      responseMessages.push({
+        role: "system",
+        content: input.systemPrompt,
+        type: "message",
+      });
+    }
 
-      // Handle string content
-      if (typeof message.content === "string") {
-        return {
-          ...message,
-          content: [{ type: textType, text: message.content }],
-        };
-      }
+    // Convert each message from our internal format
+    for (const message of input.messages) {
+      switch (message.role) {
+        case "user": {
+          const content: OpenAI.Responses.ResponseInputContent[] = [];
 
-      // Handle array content
-      if (Array.isArray(message.content)) {
-        return {
-          ...message,
-          content: message.content.map((part: any) => {
+          for (const part of message.content) {
             switch (part.type) {
               case "text":
-                return { ...part, type: textType };
-              case "image_url":
-                return { ...part, type: "input_image" };
-              default:
-                return part;
+                content.push({
+                  type: "input_text",
+                  text: part.text,
+                });
+                break;
+              case "image":
+                content.push({
+                  type: "input_image",
+                  image_url: `data:${part.mimeType};base64,${part.imageData}`,
+                  detail: "auto",
+                });
+                break;
+              case "audio":
+                // Convert audio to input_file format for Responses API
+                content.push({
+                  type: "input_file",
+                  file_data: part.audioData,
+                  filename: `audio.${part.container || "wav"}`,
+                });
+                break;
             }
-          }),
-        };
-      }
+          }
 
-      return message;
-    }) as OpenAI.Responses.ResponseInput[];
+          responseMessages.push({
+            role: "user",
+            content,
+            type: "message",
+          });
+          break;
+        }
+        case "assistant": {
+          const content: OpenAI.Responses.ResponseInputContent[] = [];
+
+          for (const part of message.content) {
+            switch (part.type) {
+              case "text":
+                content.push({
+                  type: "input_text",
+                  text: part.text,
+                });
+                break;
+              case "tool-call":
+                // Tool calls in Responses API are handled differently
+                // For now, we'll convert them to text descriptions
+                content.push({
+                  type: "input_text",
+                  text: `Tool call: ${part.toolName}(${JSON.stringify(part.args)})`,
+                });
+                break;
+              case "audio":
+                // Audio outputs are not directly supported in input conversion
+                if (part.transcript) {
+                  content.push({
+                    type: "input_text",
+                    text: part.transcript,
+                  });
+                }
+                break;
+              case "reasoning":
+                // Reasoning parts are not included in input conversion
+                // They will be generated by the model in the response
+                break;
+            }
+          }
+
+          if (content.length > 0) {
+            responseMessages.push({
+              role: "assistant",
+              content,
+              type: "message",
+            });
+          }
+          break;
+        }
+        case "tool": {
+          // Tool results in Responses API need to be converted to function call outputs
+          // For now, we'll represent them as assistant messages
+          for (const toolResult of message.content) {
+            responseMessages.push({
+              role: "assistant",
+              content: [
+                {
+                  type: "input_text",
+                  text: `Tool result for ${toolResult.toolCallId}: ${JSON.stringify(toolResult.result)}`,
+                },
+              ],
+              type: "message",
+            });
+          }
+          break;
+        }
+      }
+    }
+
+    return responseMessages;
   }
 
   /**
@@ -215,31 +305,27 @@ export class OpenAIResponsesClient {
     const content: ModelResponse["content"] = [];
 
     // Handle output content
-    if (response.output && Array.isArray(response.output)) {
-      for (const item of response.output) {
-        // Handle reasoning items
-        if (item.type === "reasoning") {
-          if (item.summary && Array.isArray(item.summary)) {
-            const reasoningPart: ReasoningPart = {
-              type: "reasoning",
-              reasoning: item.summary.map(s => s.text).join('\n'),
-              summary: true, // Items in output are always summary
-            };
-            content.push(reasoningPart);
+    for (const item of response.output) {
+      // Handle reasoning items
+      if (item.type === "reasoning") {
+        const reasoningPart: ReasoningPart = {
+          type: "reasoning",
+          reasoning: item.summary.map((s) => s.text).join("\n"),
+          summary: true, // Items in output are always summary
+        };
+        content.push(reasoningPart);
+      }
+      // Handle message items
+      else if (item.type === "message") {
+        const contentParts = item.content;
+        for (const part of contentParts) {
+          if (part.type === "output_text") {
+            content.push({
+              type: "text",
+              text: part.text,
+            });
           }
-        }
-        // Handle message items
-        else if (item.type === "message" && item.content) {
-          const contentParts = item.content;
-          for (const part of contentParts) {
-            if (part.type === "output_text") {
-              content.push({
-                type: "text",
-                text: part.text,
-              });
-            }
-            // Handle other content types as needed
-          }
+          // Handle other content types as needed
         }
       }
     }

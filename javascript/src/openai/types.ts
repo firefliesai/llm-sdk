@@ -95,7 +95,8 @@ export type OpenAIResponseStreamEvent = OpenAI.Responses.ResponseStreamEvent;
  * Extended ResponseCompletedEvent with easier access to usage information
  * This extends the official OpenAI type to provide better TypeScript support
  */
-export interface ResponseCompletedEventWithUsage extends OpenAI.Responses.ResponseCompletedEvent {
+export interface ResponseCompletedEventWithUsage
+  extends OpenAI.Responses.ResponseCompletedEvent {
   response: OpenAI.Responses.Response & {
     usage: OpenAI.Responses.ResponseUsage;
   };
