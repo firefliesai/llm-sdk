@@ -46,7 +46,7 @@ export class OpenAIResponsesClient {
     params.stream = false;
 
     // Make request to OpenAI Responses API endpoint
-    const response = await this.makeResponsesRequest(params);
+    const response = await this.openai.responses.create(params);
 
     return this.mapResponseToModelResponse(response);
   }
@@ -58,10 +58,10 @@ export class OpenAIResponsesClient {
     input: LanguageModelInput,
     responsesOptions?: OpenAIResponsesOptions,
   ): AsyncGenerator<PartialModelResponse, ModelResponse> {
-    const params = this.buildResponsesParams(input, responsesOptions);
+    const params = this.buildResponsesParams(input, responsesOptions) as OpenAI.Responses.ResponseCreateParamsStreaming;
     params.stream = true;
 
-    const stream = this.makeResponsesStreamRequest(params);
+    const stream = this.openai.responses.stream(params);
     const accumulator = new ContentDeltaAccumulator();
     let finalResponse: ResponseCompletedEventWithUsage | undefined;
 
@@ -105,66 +105,26 @@ export class OpenAIResponsesClient {
     input: LanguageModelInput,
     responsesOptions?: OpenAIResponsesOptions,
   ): OpenAI.Responses.ResponseCreateParams {
-    const messages = this.convertToResponsesAPIMessages(input);
-
-    const baseParams = {
-      model: this.options.modelId,
-      input: messages,
-    };
-
-    const toolParams = input.tools
-      ? {
-          tools: input.tools.map((tool) =>
-            convertToOpenAITool(tool, this.options),
-          ),
-        }
-      : {};
-
-    const toolChoiceParams = input.toolChoice
-      ? {
-          tool_choice: convertToOpenAIToolChoice(input.toolChoice),
-        }
-      : {};
-
-    const samplingParams = convertToOpenAISamplingParams(input);
-
-    const reasoningParams = input.reasoning
-      ? {
-          reasoning: {
-            ...(input.reasoning.effort && { effort: input.reasoning.effort }),
-            ...(input.reasoning.summary && { summary: input.reasoning.summary }),
-          },
-          // Handle maxTokens at top level as per OpenAI SDK
-          ...(input.reasoning.maxTokens && { max_output_tokens: input.reasoning.maxTokens }),
-        }
-      : {};
-
-    const backgroundParams = responsesOptions?.background
-      ? {
-          background: responsesOptions.background,
-        }
-      : {};
-
-    const storeParams =
-      typeof responsesOptions?.store === "boolean"
-        ? {
-            store: responsesOptions.store,
-          }
-        : {};
-
-    const includeParams = responsesOptions?.include
-      ? { include: responsesOptions.include }
-      : {};
-
     return {
-      ...baseParams,
-      ...toolParams,
-      ...toolChoiceParams,
-      ...samplingParams,
-      ...reasoningParams,
-      ...backgroundParams,
-      ...storeParams,
-      ...includeParams,
+      model: this.options.modelId,
+      input: this.convertToResponsesAPIMessages(input),
+      ...convertToOpenAISamplingParams(input),
+      ...(input.tools && {
+        tools: input.tools.map((tool) => convertToOpenAITool(tool, this.options)),
+      }),
+      ...(input.toolChoice && {
+        tool_choice: convertToOpenAIToolChoice(input.toolChoice),
+      }),
+      ...(input.reasoning && {
+        reasoning: {
+          ...(input.reasoning.effort && { effort: input.reasoning.effort }),
+          ...(input.reasoning.summary && { summary: input.reasoning.summary }),
+        },
+        ...(input.reasoning.maxTokens && { max_output_tokens: input.reasoning.maxTokens }),
+      }),
+      ...(responsesOptions?.background && { background: responsesOptions.background }),
+      ...(typeof responsesOptions?.store === "boolean" && { store: responsesOptions.store }),
+      ...(responsesOptions?.include && { include: responsesOptions.include }),
     } as unknown as OpenAI.Responses.ResponseCreateParams;
   }
 
@@ -173,59 +133,43 @@ export class OpenAIResponsesClient {
    */
   private convertToResponsesAPIMessages(
     input: LanguageModelInput,
-  ): Array<Record<string, unknown>> {
+  ): OpenAI.Responses.ResponseInput[] {
     const messages = convertToOpenAIMessages(input, this.options);
 
-    // Map content types for Responses API
-    return (messages as unknown as Record<string, unknown>[]).map(
-      (message: Record<string, unknown>) => {
-        if (message["content"]) {
-          // Handle string content by converting to input_text format
-          if (typeof message["content"] === "string") {
-            return {
-              ...message,
-              content: [
-                {
-                  type:
-                    message["role"] === "user" ? "input_text" : "output_text",
-                  text: message["content"],
-                },
-              ],
-            };
-          }
+    
+    return messages.map((message: any) => {
+      if (!message.content) return message;
 
-          // Handle array content
-          if (Array.isArray(message["content"])) {
-            const mappedContent = (
-              message["content"] as Record<string, unknown>[]
-            ).map((contentPart: Record<string, unknown>) => {
-              switch (contentPart["type"]) {
-                case "text":
-                  return {
-                    ...contentPart,
-                    type:
-                      message["role"] === "user" ? "input_text" : "output_text",
-                  };
-                case "image_url":
-                  return {
-                    ...contentPart,
-                    type: "input_image",
-                  };
-                default:
-                  return contentPart;
-              }
-            });
+      const isUser = message.role === "user";
+      const textType = isUser ? "input_text" : "output_text";
 
-            return {
-              ...message,
-              content: mappedContent,
-            };
-          }
-        }
+      // Handle string content
+      if (typeof message.content === "string") {
+        return {
+          ...message,
+          content: [{ type: textType, text: message.content }],
+        };
+      }
 
-        return message;
-      },
-    );
+      // Handle array content
+      if (Array.isArray(message.content)) {
+        return {
+          ...message,
+          content: message.content.map((part: any) => {
+            switch (part.type) {
+              case "text":
+                return { ...part, type: textType };
+              case "image_url":
+                return { ...part, type: "input_image" };
+              default:
+                return part;
+            }
+          }),
+        };
+      }
+
+      return message;
+    }) as OpenAI.Responses.ResponseInput[];
   }
 
   /**
@@ -265,61 +209,44 @@ export class OpenAIResponsesClient {
     return contentDeltas;
   }
 
-  /**
-   * Make request to OpenAI Responses API using OpenAI SDK's native responses.create
-   */
-  private async makeResponsesRequest(
-    params: OpenAI.Responses.ResponseCreateParams,
-  ): Promise<Record<string, unknown>> {
-    // Use OpenAI SDK's native responses.create method
-    const response = await this.openai.responses.create(
-      params as unknown as Parameters<typeof this.openai.responses.create>[0],
-    );
-    return response as unknown as Record<string, unknown>;
-  }
 
-  /**
-   * Make streaming request to OpenAI Responses API using OpenAI SDK's native responses.stream
-   */
-  private makeResponsesStreamRequest(
-    params: OpenAI.Responses.ResponseCreateParams,
-  ): AsyncIterable<OpenAI.Responses.ResponseStreamEvent> {
-    // Use OpenAI SDK's native responses.stream method - no conversion needed
-    return this.openai.responses.stream(
-      params as unknown as Parameters<typeof this.openai.responses.stream>[0],
-    );
-  }
 
   /**
    * Map OpenAI response to SDK ModelResponse
    */
   private mapResponseToModelResponse(
-    response: Record<string, unknown>,
+    response: OpenAI.Responses.Response,
   ): ModelResponse {
     const content: ModelResponse["content"] = [];
 
-    // Handle reasoning content
-    if (response["reasoning"]) {
-      const reasoning = response["reasoning"] as Record<string, unknown>;
-      const reasoningPart: ReasoningPart = {
-        type: "reasoning",
-        reasoning: (reasoning["summary"] || reasoning["content"]) as string,
-        summary: !!reasoning["summary"],
-      };
-      content.push(reasoningPart);
-    }
-
     // Handle output content
-    if (response["output"] && Array.isArray(response["output"])) {
-      const outputItems = response["output"] as Record<string, unknown>[];
-      for (const item of outputItems) {
-        if (item["type"] === "message" && item["content"]) {
-          const contentParts = item["content"] as Record<string, unknown>[];
+    if (response.output && Array.isArray(response.output)) {
+      for (const item of response.output) {
+        // Handle reasoning items
+        if (item.type === "reasoning") {
+          const reasoningItem = item; // ResponseReasoningItem type
+          if (reasoningItem.summary && Array.isArray(reasoningItem.summary)) {
+            // Combine all summary texts
+            const reasoningText = reasoningItem.summary
+              .map(s => s.text)
+              .join('\n');
+            
+            const reasoningPart: ReasoningPart = {
+              type: "reasoning",
+              reasoning: reasoningText,
+              summary: true, // Items in output are always summary
+            };
+            content.push(reasoningPart);
+          }
+        }
+        // Handle message items
+        else if (item.type === "message" && item.content) {
+          const contentParts = item.content;
           for (const part of contentParts) {
-            if (part["type"] === "text") {
+            if (part.type === "text") {
               content.push({
                 type: "text",
-                text: part["text"] as string,
+                text: part.text as string,
               });
             }
             // Handle other content types as needed
@@ -332,8 +259,8 @@ export class OpenAIResponsesClient {
       content,
     };
 
-    if (response["usage"]) {
-      const usage = this.mapUsage(response["usage"] as OpenAI.Responses.ResponseUsage);
+    if (response.usage) {
+      const usage = this.mapUsage(response.usage);
       if (usage) {
         result.usage = usage;
       }
