@@ -95,6 +95,9 @@ export function traceLanguageModel(self: LanguageModel) {
       .then(
         (response) => {
           span.onResponse(response);
+          if (self.onresponse) {
+            self.onresponse.call(self, input, response);
+          }
           return response;
         },
         (error: unknown) => {
@@ -118,6 +121,9 @@ export function traceLanguageModel(self: LanguageModel) {
         current = await stream.next();
       }
       span.onResponse(current.value);
+      if (self.onresponse) {
+        self.onresponse.call(self, input, current.value);
+      }
       return current.value;
     } catch (error: unknown) {
       span.onError(error);

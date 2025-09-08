@@ -657,6 +657,21 @@
         "extra": {
           "type": "object",
           "description": "Extra options that the model may support."
+        },
+        "metadata": {
+          "type": "object",
+          "description": "A set of key/value pairs that store additional information about the request. This is only for internal use and will not affect the request in any way.",
+          "properties": {
+            "source": {
+              "type": "string",
+              "description": "The source of the request."
+            },
+            "action": {
+              "type": "string",
+              "description": "The intent the request is trying to achieve."
+            }
+          },
+          "additionalProperties": true
         }
       },
       "required": ["messages"],

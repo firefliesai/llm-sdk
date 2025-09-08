@@ -467,4 +467,18 @@ export interface LanguageModelInput {
   extra?: {
     [k: string]: unknown;
   };
+  /**
+   * A set of key/value pairs that store additional information about the request. This is only for internal use and will not affect the request in any way.
+   */
+  metadata?: {
+    /**
+     * The source of the request.
+     */
+    source?: string;
+    /**
+     * The intent the request is trying to achieve.
+     */
+    action?: string;
+    [k: string]: unknown;
+  };
 }
