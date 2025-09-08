@@ -62,6 +62,7 @@ export interface LanguageModel {
    */
   onresponse?(
     this: LanguageModel,
+    method: "generate" | "stream",
     input: LanguageModelInput,
     response: ModelResponse,
   ): void;
