@@ -126,7 +126,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "dependencies": {
+  "peerDependencies": {
     "@opentelemetry/api": "^1.9.0"
   }
 }
