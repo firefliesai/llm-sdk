@@ -80,6 +80,8 @@ export class LMSpan {
       "gen_ai.request.presence_penalty": this.input.presencePenalty,
       "gen_ai.request.frequency_penalty": this.input.frequencyPenalty,
       "gen_ai.request.seed": this.input.seed,
+      // not in spec
+      ...(this.cost && { "llm_sdk.cost": this.cost }),
     });
     this.#span.end();
   }
