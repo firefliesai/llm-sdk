@@ -56,4 +56,14 @@ export interface LanguageModel {
   stream(
     input: LanguageModelInput,
   ): AsyncGenerator<PartialModelResponse, ModelResponse>;
+
+  /**
+   * A callback that is called whenever a request is processed by the model.
+   */
+  onresponse?(
+    this: LanguageModel,
+    method: "generate" | "stream",
+    input: LanguageModelInput,
+    response: ModelResponse,
+  ): void;
 }

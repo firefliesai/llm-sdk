@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "@firefliesai/llm-sdk",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "A unified LLM SDK",
   "scripts": {
     "generate": "node generate.js",
@@ -125,5 +125,8 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "peerDependencies": {
+    "@opentelemetry/api": "^1.9.0"
   }
 }
